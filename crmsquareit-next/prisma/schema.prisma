@@ -1,13 +1,13 @@
 // Squareit CRM — database schema
-// Default: SQLite (zero setup). To use MySQL/Postgres change `provider`
-// and DATABASE_URL in .env, then run `npm run db:push`.
+// Database: PostgreSQL (Prisma Postgres on Vercel). Set DATABASE_URL
+// in .env, then run `npm run setup` once to create tables + admin.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
