@@ -1,0 +1,402 @@
+// Squareit CRM — database schema
+// Default: SQLite (zero setup). To use MySQL/Postgres change `provider`
+// and DATABASE_URL in .env, then run `npm run db:push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  permissions String  @default("{}") // JSON: { module: ["view","create","edit","delete"] }
+  staff       Staff[]
+}
+
+model Staff {
+  id         Int       @id @default(autoincrement())
+  firstName  String
+  lastName   String
+  email      String    @unique
+  password   String
+  phone      String?
+  isAdmin    Boolean   @default(false)
+  active     Boolean   @default(true)
+  roleId     Int?
+  role       Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  lastLogin  DateTime?
+  createdAt  DateTime  @default(now())
+
+  leads          Lead[]          @relation("LeadAssignee")
+  projects       Project[]       @relation("ProjectMembers")
+  tasks          Task[]          @relation("TaskAssignees")
+  tasksCreated   Task[]          @relation("TaskCreator")
+  taskComments   TaskComment[]
+  timeEntries    TimeEntry[]
+  tickets        Ticket[]        @relation("TicketAssignee")
+  ticketReplies  TicketReply[]
+  notes          Note[]
+  activities     Activity[]
+  todos          Todo[]
+}
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  company   String
+  vat       String?
+  phone     String?
+  website   String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  country   String?
+  currency  String?
+  notes     String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  contacts  Contact[]
+  invoices  Invoice[]
+  estimates Estimate[]
+  projects  Project[]
+  tasks     Task[]
+  tickets   Ticket[]
+  expenses  Expense[]
+  leads     Lead[]
+}
+
+model Contact {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  email      String
+  phone      String?
+  title      String?
+  isPrimary  Boolean  @default(false)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  tickets    Ticket[]
+}
+
+model LeadStatus {
+  id        Int     @id @default(autoincrement())
+  name      String
+  color     String  @default("#567bbf")
+  order     Int     @default(0)
+  isDefault Boolean @default(false)
+  leads     Lead[]
+}
+
+model LeadSource {
+  id    Int    @id @default(autoincrement())
+  name  String
+  leads Lead[]
+}
+
+model Lead {
+  id          Int         @id @default(autoincrement())
+  name        String
+  company     String?
+  title       String?
+  email       String?
+  phone       String?
+  website     String?
+  address     String?
+  city        String?
+  country     String?
+  value       Float       @default(0)
+  description String?
+  statusId    Int
+  status      LeadStatus  @relation(fields: [statusId], references: [id])
+  sourceId    Int?
+  source      LeadSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  assignedId  Int?
+  assigned    Staff?      @relation("LeadAssignee", fields: [assignedId], references: [id], onDelete: SetNull)
+  customerId  Int?        // set once converted
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  lost        Boolean     @default(false)
+  junk        Boolean     @default(false)
+  lastContact DateTime?
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  relType   String   // lead | customer | project ...
+  relId     Int
+  content   String
+  staffId   Int?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([relType, relId])
+}
+
+model Activity {
+  id          Int      @id @default(autoincrement())
+  relType     String
+  relId       Int
+  description String
+  staffId     Int?
+  staff       Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([relType, relId])
+}
+
+model Tax {
+  id   Int    @id @default(autoincrement())
+  name String
+  rate Float
+}
+
+model Item {
+  id              Int     @id @default(autoincrement())
+  description     String
+  longDescription String?
+  rate            Float
+  unit            String?
+  taxRate         Float   @default(0)
+}
+
+model PaymentMode {
+  id     Int     @id @default(autoincrement())
+  name   String
+  active Boolean @default(true)
+}
+
+model Invoice {
+  id              Int        @id @default(autoincrement())
+  number          Int
+  prefix          String     @default("INV-")
+  customerId      Int
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  projectId       Int?
+  project         Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  date            DateTime
+  dueDate         DateTime?
+  status          String     @default("DRAFT") // DRAFT UNPAID PARTIAL PAID CANCELLED
+  currency        String     @default("INR")
+  subtotal        Float      @default(0)
+  discountPercent Float      @default(0)
+  discountTotal   Float      @default(0)
+  taxTotal        Float      @default(0)
+  adjustment      Float      @default(0)
+  total           Float      @default(0)
+  clientNote      String?
+  terms           String?
+  hash            String     @unique
+  sentAt          DateTime?
+  createdAt       DateTime   @default(now())
+  items           LineItem[]
+  payments        Payment[]
+  estimate        Estimate?
+}
+
+model Estimate {
+  id              Int        @id @default(autoincrement())
+  number          Int
+  prefix          String     @default("EST-")
+  customerId      Int
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  projectId       Int?
+  project         Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  date            DateTime
+  expiryDate      DateTime?
+  status          String     @default("DRAFT") // DRAFT SENT ACCEPTED DECLINED
+  currency        String     @default("INR")
+  subtotal        Float      @default(0)
+  discountPercent Float      @default(0)
+  discountTotal   Float      @default(0)
+  taxTotal        Float      @default(0)
+  adjustment      Float      @default(0)
+  total           Float      @default(0)
+  clientNote      String?
+  terms           String?
+  hash            String     @unique
+  invoiceId       Int?       @unique
+  invoice         Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdAt       DateTime   @default(now())
+  items           LineItem[]
+}
+
+model LineItem {
+  id              Int       @id @default(autoincrement())
+  invoiceId       Int?
+  invoice         Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  estimateId      Int?
+  estimate        Estimate? @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  description     String
+  longDescription String?
+  qty             Float     @default(1)
+  rate            Float     @default(0)
+  unit            String?
+  taxRate         Float     @default(0)
+  sortOrder       Int       @default(0)
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  invoiceId     Int
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount        Float
+  mode          String
+  date          DateTime
+  transactionId String?
+  note          String?
+  createdAt     DateTime @default(now())
+}
+
+model ExpenseCategory {
+  id       Int       @id @default(autoincrement())
+  name     String
+  expenses Expense[]
+}
+
+model Expense {
+  id          Int             @id @default(autoincrement())
+  name        String
+  categoryId  Int
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount      Float
+  taxRate     Float           @default(0)
+  date        DateTime
+  customerId  Int?
+  customer    Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  projectId   Int?
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  paymentMode String?
+  reference   String?
+  note        String?
+  billable    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+}
+
+model Project {
+  id          Int        @id @default(autoincrement())
+  name        String
+  customerId  Int
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  status      String     @default("NOT_STARTED") // NOT_STARTED IN_PROGRESS ON_HOLD CANCELLED FINISHED
+  billingType String     @default("FIXED")       // FIXED HOURLY
+  rate        Float      @default(0)
+  startDate   DateTime
+  deadline    DateTime?
+  description String?
+  progress    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  members     Staff[]    @relation("ProjectMembers")
+  tasks       Task[]
+  invoices    Invoice[]
+  estimates   Estimate[]
+  expenses    Expense[]
+  tickets     Ticket[]
+}
+
+model Task {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  priority    String        @default("MEDIUM")      // LOW MEDIUM HIGH URGENT
+  status      String        @default("NOT_STARTED") // NOT_STARTED IN_PROGRESS TESTING AWAITING_FEEDBACK COMPLETE
+  startDate   DateTime      @default(now())
+  dueDate     DateTime?
+  projectId   Int?
+  project     Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  customerId  Int?
+  customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdById Int?
+  createdBy   Staff?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  billable    Boolean       @default(false)
+  completedAt DateTime?
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  assignees   Staff[]       @relation("TaskAssignees")
+  comments    TaskComment[]
+  timeEntries TimeEntry[]
+}
+
+model TaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  staffId   Int?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model TimeEntry {
+  id        Int       @id @default(autoincrement())
+  taskId    Int
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  staffId   Int
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  startTime DateTime
+  endTime   DateTime?
+  note      String?
+}
+
+model Department {
+  id      Int      @id @default(autoincrement())
+  name    String
+  email   String?
+  tickets Ticket[]
+}
+
+model Ticket {
+  id           Int           @id @default(autoincrement())
+  subject      String
+  message      String
+  customerId   Int?
+  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  contactId    Int?
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  name         String?       // for non-contact submitters
+  email        String?
+  departmentId Int?
+  department   Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  projectId    Int?
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  priority     String        @default("MEDIUM") // LOW MEDIUM HIGH URGENT
+  status       String        @default("OPEN")   // OPEN IN_PROGRESS ANSWERED ON_HOLD CLOSED
+  assignedId   Int?
+  assigned     Staff?        @relation("TicketAssignee", fields: [assignedId], references: [id], onDelete: SetNull)
+  lastReply    DateTime?
+  createdAt    DateTime      @default(now())
+  replies      TicketReply[]
+}
+
+model TicketReply {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staffId   Int?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  fromName  String?
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Todo {
+  id        Int      @id @default(autoincrement())
+  staffId   Int
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

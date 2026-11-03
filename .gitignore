@@ -1,0 +1,30 @@
+# Dependencies / build output
+node_modules/
+crmsquareit-next/node_modules/
+crmsquareit-next/.next/
+
+# Secrets — keep only the sample/example files in git
+application/config/app-config.php
+.env
+.env.*
+!.env.example
+
+# Runtime data (customer uploads, temp files, logs, cache) — keep the index.html guards
+uploads/**
+!uploads/**/
+!uploads/**/index.html
+temp/**
+!temp/index.html
+application/logs/**
+!application/logs/index.html
+application/cache/**
+!application/cache/index.html
+
+# Local databases
+*.db
+*.db-journal
+*.sql
+
+# OS / editor junk
+Thumbs.db
+.DS_Store
