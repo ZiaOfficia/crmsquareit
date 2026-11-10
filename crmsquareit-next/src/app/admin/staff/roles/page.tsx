@@ -10,7 +10,7 @@ export default async function RolesPage() {
   const roles = await db.role.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { staff: true } } } });
   return (
     <>
-      <PageHeader title="Roles & permissions" subtitle="Administrators always have full access" back={{ href: "/admin/staff", label: "Staff" }} actions={<ButtonLink href="/admin/staff/roles/new">+ New role</ButtonLink>} />
+      <PageHeader title="Roles & permissions" subtitle="Super Admins always have full access" back={{ href: "/admin/staff", label: "Staff" }} actions={<ButtonLink href="/admin/staff/roles/new">+ New role</ButtonLink>} />
       <Card>
         <Table head={["Role", "Staff", "Modules"]}>
           {roles.map((r) => {

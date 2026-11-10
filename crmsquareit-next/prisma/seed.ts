@@ -3,6 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
+import { ORG_STRUCTURE } from "../src/lib/org";
 
 const db = new PrismaClient();
 const hash = () => randomBytes(16).toString("hex");
@@ -51,6 +52,14 @@ async function main() {
     await db.expenseCategory.createMany({ data: ["Software", "Advertising", "Office", "Travel", "Salaries", "Utilities"].map((name) => ({ name })) });
   if ((await db.department.count()) === 0)
     await db.department.createMany({ data: [{ name: "Support" }, { name: "Billing" }, { name: "Technical" }] });
+
+  // Organisation hierarchy: create any missing department by code. Never
+  // overwrites existing rows, so renames made in the app are kept.
+  for (const [i, d] of ORG_STRUCTURE.entries()) {
+    const parent = await db.orgDepartment.upsert({ where: { code: d.code }, update: {}, create: { code: d.code, name: d.name, sortOrder: i + 1 } });
+    for (const [j, c] of (d.children ?? []).entries())
+      await db.orgDepartment.upsert({ where: { code: c.code }, update: {}, create: { code: c.code, name: c.name, parentId: parent.id, sortOrder: j + 1 } });
+  }
 
   if ((process.env.SEED_DEMO === "1" || process.argv.includes("--demo")) && (await db.customer.count()) === 0) await demo();
 }

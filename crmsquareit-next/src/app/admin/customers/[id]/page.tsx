@@ -41,6 +41,7 @@ export default async function CustomerPage({ params, searchParams }: { params: P
         actions={
           <>
             {!c.active && <Badge>Inactive</Badge>}
+            {can(user, "quotations", "create") && <ButtonLink variant="secondary" href={`/admin/quotations/new?customerId=${c.id}`}>New quotation</ButtonLink>}
             {can(user, "invoices", "create") && <ButtonLink variant="secondary" href={`/admin/invoices/new?customerId=${c.id}`}>New invoice</ButtonLink>}
             {can(user, "customers", "edit") && <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink>}
             {can(user, "customers", "delete") && <ConfirmButton action={deleteCustomer} hidden={{ id: c.id }} />}

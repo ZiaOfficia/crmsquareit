@@ -88,6 +88,8 @@ export async function convertLead(f: FormData) {
   });
   const customerStatus = await db.leadStatus.findFirst({ where: { name: "Customer" } });
   await db.lead.update({ where: { id }, data: { customerId: customer.id, ...(customerStatus ? { statusId: customerStatus.id } : {}) } });
+  // Quotations made for the lead now also belong to the new customer.
+  await db.quotation.updateMany({ where: { leadId: id, customerId: null }, data: { customerId: customer.id } });
   const notes = await db.note.findMany({ where: { relType: "lead", relId: id } });
   if (notes.length)
     await db.note.createMany({ data: notes.map((n) => ({ relType: "customer", relId: customer.id, content: n.content, staffId: n.staffId, createdAt: n.createdAt })) });

@@ -17,6 +17,14 @@ export const ESTIMATE_STATUS: Record<string, { label: string; tone: Tone }> = {
   EXPIRED: { label: "Expired", tone: "amber" },
 };
 
+export const QUOTATION_STATUS: Record<string, { label: string; tone: Tone }> = {
+  DRAFT: { label: "Draft", tone: "gray" },
+  SENT: { label: "Sent", tone: "blue" },
+  ACCEPTED: { label: "Accepted", tone: "green" },
+  DECLINED: { label: "Declined", tone: "red" },
+  EXPIRED: { label: "Expired", tone: "amber" },
+};
+
 export const PROJECT_STATUS: Record<string, { label: string; tone: Tone }> = {
   NOT_STARTED: { label: "Not started", tone: "gray" },
   IN_PROGRESS: { label: "In progress", tone: "blue" },

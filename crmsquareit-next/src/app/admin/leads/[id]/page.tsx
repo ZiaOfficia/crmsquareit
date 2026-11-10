@@ -40,6 +40,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                 </form>
               )
             )}
+            {can(user, "quotations", "create") && <ButtonLink variant="secondary" href={`/admin/quotations/new?leadId=${lead.id}`}>New quotation</ButtonLink>}
             {canEdit && <ButtonLink variant="secondary" href={`/admin/leads/${lead.id}/edit`}>Edit</ButtonLink>}
             {can(user, "leads", "delete") && <ConfirmButton action={deleteLead} hidden={{ id: lead.id }} />}
           </>

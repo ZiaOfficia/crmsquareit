@@ -2,8 +2,9 @@ import Link from "next/link";
 import { LogOut, Search, Plus } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { Avatar } from "./ui";
+import { AnnouncementBell, type InboxItem } from "./announcements";
 
-export function Topbar({ name, role }: { name: string; role: string }) {
+export function Topbar({ name, role, inbox }: { name: string; role: string; inbox: { items: InboxItem[]; unread: number } }) {
   return (
     <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/85 px-4 pl-16 backdrop-blur sm:px-6 lg:px-8">
       <form action="/admin/search" className="relative max-w-md flex-1">
@@ -32,6 +33,7 @@ export function Topbar({ name, role }: { name: string; role: string }) {
             ))}
           </div>
         </details>
+        <AnnouncementBell items={inbox.items} unread={inbox.unread} />
         <Link href="/admin/profile" className="flex items-center gap-2.5">
           <Avatar name={name} size={34} />
           <span className="hidden text-left leading-tight md:block">

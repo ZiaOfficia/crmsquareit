@@ -1,4 +1,5 @@
 import { requirePerm } from "@/lib/auth";
+import { canManageOrg } from "@/lib/org";
 import { PageHeader } from "@/components/ui";
 import { StaffForm } from "../form";
 import { saveStaff } from "../actions";
@@ -9,7 +10,7 @@ export default async function NewStaff() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Add staff member" back={{ href: "/admin/staff", label: "Staff" }} />
-      <StaffForm action={saveStaff.bind(null, null)} canSetAdmin={user.isAdmin} />
+      <StaffForm action={saveStaff.bind(null, null)} canSetAdmin={user.isAdmin} canSetOrg={canManageOrg(user)} />
     </div>
   );
 }

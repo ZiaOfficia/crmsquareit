@@ -29,6 +29,9 @@ model Staff {
   lastName   String
   email      String    @unique
   password   String
+  /// The current password, AES-256-GCM encrypted (src/lib/passwords.ts) so Super Admin and HR can view it.
+  passwordView  String?
+  passwordSetAt DateTime?
   phone      String?
   isAdmin    Boolean   @default(false)
   active     Boolean   @default(true)
@@ -48,6 +51,30 @@ model Staff {
   notes          Note[]
   activities     Activity[]
   todos          Todo[]
+  orgMemberships DepartmentMember[]
+
+  announcementsSent     Announcement[]     @relation("AnnouncementAuthor")
+  announcementsReceived Announcement[]     @relation("AnnouncementRecipients")
+  announcementReads     AnnouncementRead[]
+
+  officeExpenses        OfficeExpense[]       @relation("OfficeExpenseCreator")
+  officeReportsSent     OfficeExpenseReport[] @relation("OfficeReportSubmitter")
+  officeReportsReviewed OfficeExpenseReport[] @relation("OfficeReportReviewer")
+  quotations            Quotation[]           @relation("QuotationCreator")
+  passwordResets        PasswordReset[]
+}
+
+/// "Forgot password" links. Only a SHA-256 of the token is stored.
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  staffId   Int
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([staffId])
 }
 
 model Customer {
@@ -74,6 +101,7 @@ model Customer {
   tickets   Ticket[]
   expenses  Expense[]
   leads     Lead[]
+  quotations Quotation[]
 }
 
 model Contact {
@@ -132,6 +160,7 @@ model Lead {
   lastContact DateTime?
   sortOrder   Int         @default(0)
   createdAt   DateTime    @default(now())
+  quotations  Quotation[]
 }
 
 model Note {
@@ -240,6 +269,8 @@ model LineItem {
   invoice         Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   estimateId      Int?
   estimate        Estimate? @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  quotationId     Int?
+  quotation       Quotation? @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   description     String
   longDescription String?
   qty             Float     @default(1)
@@ -247,6 +278,8 @@ model LineItem {
   unit            String?
   taxRate         Float     @default(0)
   sortOrder       Int       @default(0)
+  tag             String?   // quotations: short label on the service card, e.g. "DEV"
+  note            String?   // quotations: line under the service in the pricing summary, e.g. "Timeline: 10-15 Days"
 }
 
 model Payment {
@@ -399,4 +432,158 @@ model Todo {
   text      String
   done      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// ─── Organisation hierarchy ─────────────────────────────────────────────
+// Company departments (HR, BDE, SEO, Paid Advertising > SMM/SEM ...).
+// Separate from `Department` above, which only routes support tickets.
+model OrgDepartment {
+  id        Int                @id @default(autoincrement())
+  code      String             @unique // stable key used in code, e.g. "SEO", "SMM"
+  name      String
+  parentId  Int?
+  parent    OrgDepartment?     @relation("OrgDepartmentTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  OrgDepartment[]    @relation("OrgDepartmentTree")
+  sortOrder Int                @default(0)
+  active    Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  members   DepartmentMember[]
+  announcements Announcement[] @relation("AnnouncementDepartments")
+}
+
+// A staff member's place in a department and their team role there.
+// One row per (staff, department). The schema allows several rows per
+// person so "can a user be in more than one department?" can be answered
+// later without another migration; the UI currently assigns one.
+model DepartmentMember {
+  id           Int           @id @default(autoincrement())
+  staffId      Int
+  staff        Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  departmentId Int
+  department   OrgDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  teamRole     String        // TL | EXECUTIVE
+  createdAt    DateTime      @default(now())
+
+  @@unique([staffId, departmentId])
+  @@index([departmentId])
+}
+
+// ─── Announcements ──────────────────────────────────────────────────────
+// Sent by a Super Admin to everyone, to departments (a parent department
+// includes its sub-departments) or to specific people.
+model Announcement {
+  id          Int                @id @default(autoincrement())
+  title       String
+  message     String
+  audience    String             // ALL | DEPARTMENTS | PEOPLE
+  urgent      Boolean            @default(false)
+  pinned      Boolean            @default(false)
+  expiresAt   DateTime?
+  createdById Int?
+  createdBy   Staff?             @relation("AnnouncementAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  departments OrgDepartment[]    @relation("AnnouncementDepartments")
+  recipients  Staff[]            @relation("AnnouncementRecipients")
+  reads       AnnouncementRead[]
+
+  @@index([createdAt])
+}
+
+// One row when a person has read (acknowledged) an announcement.
+model AnnouncementRead {
+  announcementId Int
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  staffId        Int
+  staff          Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+
+  @@id([announcementId, staffId])
+  @@index([staffId])
+}
+
+// ─── Office expenses (recorded by HR) ───────────────────────────────────
+// Running costs of the office itself: rent, electricity, pantry, stationery…
+// Separate from `Expense`, which is spend against customers / projects.
+model OfficeExpense {
+  id          Int      @id @default(autoincrement())
+  title       String
+  category    String   // key from OFFICE_EXPENSE_CATEGORIES (src/lib/office-expenses.ts)
+  amount      Float
+  date        DateTime
+  paidTo      String?  // vendor / shop / person
+  paymentMode String?
+  reference   String?  // bill / receipt number
+  note        String?
+  createdById Int?
+  createdBy   Staff?   @relation("OfficeExpenseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
+// One per month: HR submits the month's office expenses to the Super Admin,
+// who approves it or sends it back. While SUBMITTED or APPROVED the month is
+// locked for HR; RETURNED unlocks it so HR can fix and resubmit.
+model OfficeExpenseReport {
+  id            Int       @id @default(autoincrement())
+  month         String    @unique // "2026-11"
+  status        String    // SUBMITTED | APPROVED | RETURNED
+  total         Float     // snapshot at submission
+  count         Int
+  note          String?   // HR's note to the Super Admin
+  submittedById Int?
+  submittedBy   Staff?    @relation("OfficeReportSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  submittedAt   DateTime  @default(now())
+  reviewedById  Int?
+  reviewedBy    Staff?    @relation("OfficeReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  reviewNote    String?
+}
+
+// ─── Quotations (made by BDE) ───────────────────────────────────────────
+// A priced proposal for a lead (prospect) or an existing customer. The
+// recipient's details are copied in when it's made, so the quotation stays
+// the same even if the lead or customer is edited later. Line items reuse
+// LineItem (quotationId). Downloadable as PDF: /admin/quotations/[id]/pdf
+model Quotation {
+  id              Int        @id @default(autoincrement())
+  number          Int
+  prefix          String     @default("QT-")
+  subject         String     // "Quotation for", e.g. "Website Development"
+  subtitle        String?    // line under it, e.g. "Doctor / clinic website"
+  leadId          Int?
+  lead            Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerId      Int?
+  customer        Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  clientName      String     // person the quotation is addressed to
+  clientCompany   String?
+  clientEmail     String?
+  clientPhone     String?
+  clientAddress   String?
+  date            DateTime
+  validUntil      DateTime?
+  status          String     @default("DRAFT") // DRAFT SENT ACCEPTED DECLINED
+  currency        String     @default("INR")
+  subtotal        Float      @default(0)
+  discountPercent Float      @default(0)
+  discountTotal   Float      @default(0)
+  taxTotal        Float      @default(0)
+  adjustment      Float      @default(0)
+  total           Float      @default(0)
+  intro           String?    // "Engagement overview" paragraph
+  scopeIntro      String?    // "Scope of work" opening paragraph
+  scope           Json?      // [{ title, body }]: numbered scope sections (body uses simple line markup)
+  steps           Json?      // [{ title, text }]: "Acceptance & next steps"
+  terms           String?    // one term per line, "Label: text"
+  closing         String?    // closing line, e.g. "Thank you for the opportunity..."
+  createdById     Int?
+  createdBy       Staff?     @relation("QuotationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  items           LineItem[]
+
+  @@index([leadId])
+  @@index([customerId])
 }

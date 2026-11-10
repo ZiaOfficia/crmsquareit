@@ -8,11 +8,17 @@ import { Card, Stat, StatusBadge, Badge, EmptyState } from "@/components/ui";
 import { RevenueChart, DonutChart } from "@/components/charts";
 import { TASK_STATUS, PRIORITY } from "@/lib/constants";
 import { TodoWidget } from "./todo-widget";
+import { SuperAdminPanel } from "./super-admin-panel";
+import { BdeDashboard } from "./bde-dashboard";
 
 export const metadata = { title: "Dashboard" };
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: { searchParams: Promise<{ tab?: string; classic?: string }> }) {
   const user = await requireUser();
+  const { tab, classic } = await searchParams;
+  // Super Admin and HR get the live control panel; ?classic=1 shows the old dashboard.
+  if ((user.isAdmin || user.isHR) && !classic) return <SuperAdminPanel user={user} tab={tab} />;
+  if (user.isBDE && !classic) return <BdeDashboard user={user} />;
   const settings = await getSettings();
   const cur = settings.currency;
   const now = new Date();

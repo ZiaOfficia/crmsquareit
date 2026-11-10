@@ -78,6 +78,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               {input("estimate_terms", "Default terms & conditions", { span: true, area: true })}
             </div>
           </Card>
+          <Card title="Quotations (BDE)">
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              {input("company_legal_name", "Company name on quotations")}
+              {input("company_website", "Website")}
+              {input("quotation_prefix", "Number prefix")}
+              {input("quotation_valid_days", "Valid for (days)", { type: "number" })}
+              {input("quotation_intro", "Default engagement overview ({subject} and {client} are filled in)", { span: true, area: true })}
+              {input("quotation_steps", "Default next steps (one per line: Title | text)", { span: true, area: true })}
+              {input("quotation_terms", "Default terms (one per line: Label: text)", { span: true, area: true })}
+              {input("quotation_closing", "Default closing line", { span: true })}
+            </div>
+          </Card>
           <div className="flex justify-end"><SubmitButton>Save settings</SubmitButton></div>
         </ActionForm>
       )}
