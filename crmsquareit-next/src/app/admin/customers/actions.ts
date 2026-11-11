@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
-import { str, reqStr, bool, type ActionState } from "@/lib/forms";
+import { str, reqStr, bool, num, intOrNull, dateOrNull, type ActionState } from "@/lib/forms";
+import { PAYMENT_TYPES, billingOf } from "@/lib/customer-billing";
 
 function customerData(f: FormData) {
   return {
@@ -83,4 +84,44 @@ export async function deleteContact(f: FormData) {
   const id = Number(f.get("id"));
   const c = await db.contact.delete({ where: { id } });
   revalidatePath(`/admin/customers/${c.customerId}`);
+}
+
+/** Record money received from a customer: advance, paid at once, part payment or final balance. */
+export async function addCustomerPayment(customerId: number, _: ActionState, f: FormData): Promise<ActionState> {
+  const user = await requirePerm("customers", "edit");
+  const type = String(f.get("type") ?? "");
+  if (!PAYMENT_TYPES[type]) return { error: "Pick the payment type." };
+  const b = await billingOf(customerId);
+  let amount = num(f, "amount");
+  // "Paid at once" and "Final balance" default to whatever is still outstanding.
+  if (!amount && (type === "FULL" || type === "BALANCE")) amount = b.outstanding;
+  if (!(amount > 0)) return { error: "Enter the amount received." };
+  if (b.billed > 0 && amount > b.outstanding + 0.5)
+    return { error: `That is more than the outstanding amount (${b.outstanding.toLocaleString("en-IN")}).` };
+  const p = await db.customerPayment.create({
+    data: {
+      customerId,
+      type,
+      amount,
+      quotationId: intOrNull(f, "quotationId"),
+      mode: str(f, "mode"),
+      date: dateOrNull(f, "date") ?? new Date(),
+      reference: str(f, "reference"),
+      note: str(f, "note"),
+      staffId: user.id,
+    },
+  });
+  await logActivity("customer", customerId, `recorded ${PAYMENT_TYPES[type].label.toLowerCase()} of ${p.amount.toLocaleString("en-IN")}`, user.id);
+  revalidatePath(`/admin/customers/${customerId}`);
+  revalidatePath("/admin/customers");
+  return { ok: true };
+}
+
+export async function deleteCustomerPayment(f: FormData) {
+  const user = await requirePerm("customers", "edit");
+  const id = Number(f.get("id"));
+  const p = await db.customerPayment.delete({ where: { id } });
+  await logActivity("customer", p.customerId, `deleted a ${PAYMENT_TYPES[p.type]?.label.toLowerCase() ?? "payment"} of ${p.amount.toLocaleString("en-IN")}`, user.id);
+  revalidatePath(`/admin/customers/${p.customerId}`);
+  revalidatePath("/admin/customers");
 }

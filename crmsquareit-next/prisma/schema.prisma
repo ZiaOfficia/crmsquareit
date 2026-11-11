@@ -51,6 +51,8 @@ model Staff {
   notes          Note[]
   activities     Activity[]
   todos          Todo[]
+  followUps      FollowUp[]
+  customerPayments CustomerPayment[]
   orgMemberships DepartmentMember[]
 
   announcementsSent     Announcement[]     @relation("AnnouncementAuthor")
@@ -102,6 +104,28 @@ model Customer {
   expenses  Expense[]
   leads     Lead[]
   quotations Quotation[]
+  payments  CustomerPayment[]
+}
+
+/** Money received from a customer against a won quotation: an advance, a one-time full payment,
+ *  part payments, or the final balance. (Payments against invoices stay in Payment.) */
+model CustomerPayment {
+  id          Int        @id @default(autoincrement())
+  customerId  Int
+  customer    Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotationId Int?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+  type        String     @default("ADVANCE") // ADVANCE FULL PART BALANCE
+  amount      Float
+  mode        String?
+  date        DateTime
+  reference   String?
+  note        String?
+  staffId     Int?
+  staff       Staff?     @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([customerId])
 }
 
 model Contact {
@@ -158,9 +182,28 @@ model Lead {
   lost        Boolean     @default(false)
   junk        Boolean     @default(false)
   lastContact DateTime?
+  temperature  String?    // HOT | COLD, set after follow-up (junk uses the junk flag)
+  nextFollowUp DateTime?
   sortOrder   Int         @default(0)
   createdAt   DateTime    @default(now())
   quotations  Quotation[]
+  followUps   FollowUp[]
+}
+
+/** One follow-up with a lead after the quotation: a call, WhatsApp, email or meeting. */
+model FollowUp {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  staffId   Int?
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  channel   String   @default("CALL") // CALL WHATSAPP EMAIL MEETING
+  note      String?
+  outcome   String?  // HOT COLD JUNK, or null when still undecided
+  nextDate  DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
 }
 
 model Note {
@@ -583,6 +626,7 @@ model Quotation {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   items           LineItem[]
+  payments        CustomerPayment[]
 
   @@index([leadId])
   @@index([customerId])

@@ -18,7 +18,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const { tab, classic } = await searchParams;
   // Super Admin and HR get the live control panel; ?classic=1 shows the old dashboard.
   if ((user.isAdmin || user.isHR) && !classic) return <SuperAdminPanel user={user} tab={tab} />;
-  if (user.isBDE && !classic) return <BdeDashboard user={user} />;
+  if (user.isBDE && !classic) return <BdeDashboard user={user} stage={tab} />;
   const settings = await getSettings();
   const cur = settings.currency;
   const now = new Date();

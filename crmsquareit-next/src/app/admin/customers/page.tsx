@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, money } from "@/lib/format";
+import { billingFor } from "@/lib/customer-billing";
 import { Badge, ButtonLink, Card, EmptyState, PageHeader, Table } from "@/components/ui";
 import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
@@ -27,6 +28,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     db.customer.count({ where }),
     db.customer.groupBy({ by: ["active"], _count: true }),
   ]);
+  const bills = await billingFor(rows.map((r) => r.id));
   const active = counts.find((c) => c.active)?._count ?? 0;
   const inactive = counts.find((c) => !c.active)?._count ?? 0;
 
@@ -41,7 +43,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         {rows.length === 0 ? (
           <EmptyState title="No customers found" action={<ButtonLink href="/admin/customers/new">Add customer</ButtonLink>} />
         ) : (
-          <Table head={["Company", "Primary contact", "Phone", "City", "Projects", "Invoices", "Status", "Since"]}>
+          <Table head={["Company", "Primary contact", "Phone", "Total billed", "Paid", "Outstanding", "Projects", "Status", "Since"]}>
             {rows.map((c) => (
               <tr key={c.id} className="hover:bg-slate-50/60">
                 <td className="td">
@@ -60,9 +62,32 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                   )}
                 </td>
                 <td className="td">{c.phone ?? "—"}</td>
-                <td className="td">{c.city ?? "—"}</td>
+                <td className="td whitespace-nowrap font-medium tabular-nums">{bills[c.id].billed ? money(bills[c.id].billed, c.currency || "INR") : "—"}</td>
+                <td className="td whitespace-nowrap text-xs tabular-nums">
+                  {bills[c.id].paid ? (
+                    <>
+                      <span className="font-medium text-brand-green">{money(bills[c.id].paid, c.currency || "INR")}</span>
+                      {bills[c.id].advance > 0 && <div className="text-slate-500">Advance {money(bills[c.id].advance, c.currency || "INR")}</div>}
+                      {bills[c.id].full > 0 && <div className="text-slate-500">Paid at once</div>}
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="td whitespace-nowrap tabular-nums">
+                  {bills[c.id].billed ? (
+                    bills[c.id].outstanding > 0 ? (
+                      <Link href={`/admin/customers/${c.id}?tab=payments`} className="font-semibold text-brand-red hover:underline">
+                        {money(bills[c.id].outstanding, c.currency || "INR")}
+                      </Link>
+                    ) : (
+                      <Badge tone="green">Fully paid</Badge>
+                    )
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="td">{c._count.projects}</td>
-                <td className="td">{c._count.invoices}</td>
                 <td className="td">{c.active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</td>
                 <td className="td text-slate-500">{fmtDate(c.createdAt)}</td>
               </tr>
