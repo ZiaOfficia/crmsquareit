@@ -17,7 +17,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!q) notFound();
   if (!canSeeQuotation(user, q)) redirect("/admin/forbidden");
 
-  const pdf = await quotationPdf(q, await getSettings());
+  let pdf: Buffer;
+  try {
+    pdf = await quotationPdf(q, await getSettings());
+  } catch (e) {
+    // Shows up in the server / hosting logs with the quotation id.
+    console.error(`[quotation pdf] #${id} failed:`, e);
+    return new Response(`Couldn't create the PDF for this quotation: ${e instanceof Error ? e.message : String(e)}`, {
+      status: 500,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
   const who = (q.clientCompany || q.clientName).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 40);
   const file = `${docNumber(q.prefix, q.number)}${who ? `-${who}` : ""}.pdf`;
   const inline = new URL(req.url).searchParams.get("inline") === "1";

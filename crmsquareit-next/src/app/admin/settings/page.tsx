@@ -71,6 +71,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               {input("invoice_terms", "Default terms & conditions", { span: true, area: true })}
             </div>
           </Card>
+          <Card title="Tax invoices (GST PDF)">
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              {input("tinv_seller_name", "Seller name")}
+              {input("tinv_seller_gstin", "Seller GSTIN")}
+              {input("tinv_seller_address", "Seller address (one printed line per line)", { span: true, area: true })}
+              {input("tinv_seller_email", "Email")}
+              {input("tinv_seller_phone", "Phone")}
+              {input("tinv_seller_state", "Seller state (same place of supply → CGST + SGST, else IGST)")}
+              {input("tinv_prefix", "Number prefix (SS → SS/26-27/001)")}
+              {input("tinv_due_days", "Due after (days)", { type: "number" })}
+              {input("tinv_terms", "Default terms & conditions", { span: true, area: true })}
+              {input("tinv_declaration", "Default declaration", { span: true, area: true })}
+            </div>
+          </Card>
           <Card title="Estimates">
             <div className="grid gap-4 p-5 sm:grid-cols-2">
               {input("estimate_prefix", "Number prefix")}

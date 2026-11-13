@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/forms";
 import { ActionForm, SubmitButton } from "./client";
 import { Card, Field } from "./ui";
 import { LineItemsEditor, type EditorItem } from "./line-items";
+import { SalesExamples } from "./sales-examples";
 
 export type SalesDocValues = {
   customerId?: number;
@@ -42,6 +43,7 @@ export async function SalesForm({
   const currency = values.currency || settings.currency;
   return (
     <ActionForm action={action} className="space-y-6">
+      <SalesExamples kind={kind} />
       <Card title={kind === "invoice" ? "Invoice details" : "Estimate details"} actions={values.number && <span className="text-sm font-semibold text-slate-500">{values.number}</span>}>
         <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Customer *" className="sm:col-span-2">

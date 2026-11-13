@@ -12,6 +12,7 @@ export const MODULES = [
   { key: "tickets", label: "Support" },
   { key: "reports", label: "Reports" },
   { key: "staff", label: "Staff" },
+  { key: "hr", label: "HR portal" },
   { key: "settings", label: "Settings" },
 ] as const;
 
@@ -32,6 +33,7 @@ export function parsePermissions(json?: string | null): PermissionMap {
  *  Roles & permissions, Settings and the Super Admin flag stay Super Admin only. */
 export const HR_PERMISSIONS: PermissionMap = {
   staff: ["view", "create", "edit", "delete"],
+  hr: ["view", "create", "edit", "delete"],
   tasks: ["view", "create", "edit", "delete"],
   expenses: ["view", "create", "edit", "delete"],
   office_expenses: ["view", "create", "edit", "delete"],

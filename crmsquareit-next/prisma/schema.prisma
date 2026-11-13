@@ -40,6 +40,27 @@ model Staff {
   lastLogin  DateTime?
   createdAt  DateTime  @default(now())
 
+  // HR record (HR portal). Salary is monthly, in the company currency.
+  employeeCode   String?
+  designation    String?
+  joinDate       DateTime? @db.Date
+  dob            DateTime? @db.Date
+  gender         String?
+  address        String?
+  emergencyName  String?
+  emergencyPhone String?
+  bankName       String?
+  bankAccount    String?
+  bankIfsc       String?
+  pan            String?
+  monthlySalary  Float     @default(0)
+
+  attendance       Attendance[]   @relation("AttendanceStaff")
+  attendanceMarked Attendance[]   @relation("AttendanceMarker")
+  leaveRequests    LeaveRequest[] @relation("LeaveStaff")
+  leaveReviewed    LeaveRequest[] @relation("LeaveReviewer")
+  payslips         Payslip[]
+
   leads          Lead[]          @relation("LeadAssignee")
   projects       Project[]       @relation("ProjectMembers")
   tasks          Task[]          @relation("TaskAssignees")
@@ -630,4 +651,100 @@ model Quotation {
 
   @@index([leadId])
   @@index([customerId])
+}
+
+/** One row per person per day. Made by checking in, by HR marking it, or by an approved leave. */
+model Attendance {
+  id         Int       @id @default(autoincrement())
+  staffId    Int
+  staff      Staff     @relation("AttendanceStaff", fields: [staffId], references: [id], onDelete: Cascade)
+  date       DateTime  @db.Date
+  status     String    @default("PRESENT") // PRESENT ABSENT HALF_DAY LEAVE WFH
+  checkIn    DateTime?
+  checkOut   DateTime?
+  note       String?
+  markedById Int?
+  markedBy   Staff?    @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([staffId, date])
+  @@index([date])
+}
+
+model LeaveRequest {
+  id           Int       @id @default(autoincrement())
+  staffId      Int
+  staff        Staff     @relation("LeaveStaff", fields: [staffId], references: [id], onDelete: Cascade)
+  type         String    // CASUAL SICK EARNED UNPAID
+  fromDate     DateTime  @db.Date
+  toDate       DateTime  @db.Date
+  halfDay      Boolean   @default(false)
+  days         Float
+  reason       String?
+  status       String    @default("PENDING") // PENDING APPROVED REJECTED CANCELLED
+  reviewedById Int?
+  reviewedBy   Staff?    @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([staffId, status])
+}
+
+model Holiday {
+  id   Int      @id @default(autoincrement())
+  date DateTime @unique @db.Date
+  name String
+}
+
+/** Monthly salary slip. Worked out from salary + attendance; HR can add bonus / deductions, then marks it paid. */
+model Payslip {
+  id          Int       @id @default(autoincrement())
+  staffId     Int
+  staff       Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  month       String    // YYYY-MM
+  salary      Float
+  workingDays Int
+  lopDays     Float     @default(0) // loss-of-pay days: absent, unpaid leave, half days
+  lopAmount   Float     @default(0)
+  bonus       Float     @default(0)
+  deduction   Float     @default(0)
+  net         Float
+  note        String?
+  status      String    @default("DRAFT") // DRAFT PAID
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([staffId, month])
+}
+
+// ─── Tax invoices (GST) ──────────────────────────────────────────────────
+// Standalone GST tax invoice whose PDF replicates src/pdfinvoice exactly.
+// PDF: /admin/tax-invoices/[id]/pdf. Items are stored as JSON (TaxInvoiceItem[] in src/lib/tax-invoice.ts).
+model TaxInvoice {
+  id            Int      @id @default(autoincrement())
+  number        String   @unique // e.g. "SS/26-27/070"
+  seq           Int      // running number inside the financial year (the 070)
+  fy            String   // "26-27"
+  customerId    Int?     // optional: customer the details were filled from
+  issueDate     DateTime
+  dueDate       DateTime?
+  billName      String
+  billAddress   String?
+  billGstin     String?
+  shipName      String?
+  shipAddress   String?
+  placeOfSupply String
+  items         Json
+  subtotal      Float    @default(0)
+  taxTotal      Float    @default(0)
+  total         Float    @default(0)
+  terms         String?
+  declaration   String?
+  status        String   @default("UNPAID") // UNPAID PAID CANCELLED
+  createdById   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

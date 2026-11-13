@@ -12,12 +12,14 @@ const BANNER_MAX = 3;
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const allowed = Object.fromEntries(MODULES.map((m) => [m.key, can(user, m.key)]));
-  const [openTickets, officeReports, inbox, bannerRows] = await Promise.all([
+  const [openTickets, officeReports, inbox, bannerRows, pendingLeave] = await Promise.all([
     allowed.tickets ? db.ticket.count({ where: { status: "OPEN" } }) : 0,
     // Super Admin: months HR has submitted and that are waiting for review.
     user.isAdmin ? db.officeExpenseReport.count({ where: { status: "SUBMITTED" } }) : 0,
     inboxFor(user),
     db.announcement.findMany({ where: unreadWhere(user), orderBy: announcementOrder, take: BANNER_MAX, include: { createdBy: { select: { firstName: true, lastName: true } } } }),
+    // HR / Super Admin: leave requests waiting for approval.
+    allowed.hr ? db.leaveRequest.count({ where: { status: "PENDING" } }) : 0,
   ]);
   const from = (a: { createdBy: { firstName: string; lastName: string } | null }) => (a.createdBy ? `${a.createdBy.firstName} ${a.createdBy.lastName}`.trim() : "Admin");
   const toItem = (a: (typeof inbox.items)[number] | (typeof bannerRows)[number], read: boolean): InboxItem => ({
@@ -33,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <Sidebar allowed={allowed} isAdmin={user.isAdmin} badges={{ tickets: openTickets, announcements: inbox.unread, officeReports }} />
+      <Sidebar allowed={allowed} isAdmin={user.isAdmin} badges={{ tickets: openTickets, announcements: inbox.unread, officeReports, leave: pendingLeave }} />
       <div className="lg:pl-64">
         <Topbar
           name={`${user.firstName} ${user.lastName}`}

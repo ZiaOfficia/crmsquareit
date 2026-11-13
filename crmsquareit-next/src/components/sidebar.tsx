@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import clsx from "clsx";
 import {
   LayoutDashboard, Users, Target, FileText, FileSignature, CreditCard, Receipt, FolderKanban,
-  CheckSquare, LifeBuoy, BarChart3, UserCog, Settings, Menu, X, Megaphone, Building2, ScrollText,
+  CheckSquare, LifeBuoy, BarChart3, UserCog, Settings, Menu, X, Megaphone, Building2, ScrollText, CalendarCheck, Briefcase, FileCheck,
 } from "lucide-react";
 
 type Item = { href: string; label: string; icon: React.ElementType; perm?: string; adminOnly?: boolean; badge?: string };
@@ -14,6 +14,7 @@ const groups: { title?: string; items: Item[] }[] = [
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/announcements", label: "Announcements", icon: Megaphone, badge: "announcements" },
+      { href: "/admin/my", label: "My HR", icon: CalendarCheck },
     ],
   },
   {
@@ -28,6 +29,7 @@ const groups: { title?: string; items: Item[] }[] = [
     title: "Sales",
     items: [
       { href: "/admin/invoices", label: "Invoices", icon: FileText, perm: "invoices" },
+      { href: "/admin/tax-invoices", label: "Tax invoices", icon: FileCheck, perm: "invoices" },
       { href: "/admin/estimates", label: "Estimates", icon: FileSignature, perm: "estimates" },
       { href: "/admin/payments", label: "Payments", icon: CreditCard, perm: "payments" },
       { href: "/admin/expenses", label: "Expenses", icon: Receipt, perm: "expenses" },
@@ -45,6 +47,7 @@ const groups: { title?: string; items: Item[] }[] = [
   {
     title: "Admin",
     items: [
+      { href: "/admin/hr", label: "HR portal", icon: Briefcase, perm: "hr", badge: "leave" },
       { href: "/admin/reports", label: "Reports", icon: BarChart3, perm: "reports" },
       { href: "/admin/staff", label: "Staff & roles", icon: UserCog, perm: "staff" },
       { href: "/admin/settings", label: "Settings", icon: Settings, perm: "settings" },

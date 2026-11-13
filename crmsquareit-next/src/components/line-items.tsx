@@ -1,8 +1,10 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 
 export type EditorItem = { description: string; longDescription?: string | null; qty: number; rate: number; unit?: string | null; taxRate: number };
+export type SalesExampleFill = { items: EditorItem[]; discountPercent: number; adjustment: number };
+export const SALES_EXAMPLE_EVENT = "sales-example-fill";
 type Saved = { id: number; description: string; longDescription: string | null; rate: number; unit: string | null; taxRate: number };
 
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -26,6 +28,18 @@ export function LineItemsEditor({
   const [items, setItems] = useState<EditorItem[]>(initial.length ? initial : [blank]);
   const [discount, setDiscount] = useState(initialDiscount);
   const [adjustment, setAdjustment] = useState(initialAdjustment);
+  // "Fill example" buttons (sales-examples.tsx) send a full set of items.
+  useEffect(() => {
+    const onFill = (e: Event) => {
+      const d = (e as CustomEvent<SalesExampleFill>).detail;
+      setItems(d.items.length ? d.items.map((i) => ({ ...i })) : [blank]);
+      setDiscount(d.discountPercent);
+      setAdjustment(d.adjustment);
+    };
+    window.addEventListener(SALES_EXAMPLE_EVENT, onFill);
+    return () => window.removeEventListener(SALES_EXAMPLE_EVENT, onFill);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const fmt = (n: number) => {
     try {
       return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(n);

@@ -1,12 +1,11 @@
 import "server-only";
-import { readFile } from "fs/promises";
-import path from "path";
 import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import type { Style } from "@react-pdf/types";
 import type { LineItem, Quotation } from "@prisma/client";
 import { DEFAULT_SETTINGS, type Settings } from "./settings";
 import { round2 } from "./format";
 import { docNumber } from "./sales";
+import { ARROW_FONT_DATA_URL, QUOTATION_LOGO_BASE64 } from "./pdf-assets";
 import { ARROW_FONT, wrapRuns, type FontName, type Run } from "./pdf-metrics";
 import { asSections, asSteps, parseScopeBody, parseTerms, rupees, servicePoints, slashDate, type ScopeBlock } from "./quotation-content";
 
@@ -153,7 +152,8 @@ const s = StyleSheet.create({
   signCap: { fontSize: 8, color: C.muted },
 });
 
-Font.register({ family: ARROW_FONT, src: path.join(process.cwd(), "src", "lib", "fonts", "arrow.ttf") });
+// Embedded (see pdf-assets.ts) so it works whatever folder the server runs from.
+Font.register({ family: ARROW_FONT, src: ARROW_FONT_DATA_URL });
 
 /** Splits out "→" so it prints from the arrow font (Helvetica has no arrow). */
 const withArrows = (runs: Run[]): Run[] =>
@@ -217,12 +217,9 @@ function groupBlocks(blocks: ScopeBlock[]) {
 
 type Q = Quotation & { items: LineItem[]; createdBy?: { firstName: string; lastName: string } | null };
 
+let logoBuf: Buffer | null = null;
 async function logo() {
-  try {
-    return await readFile(path.join(process.cwd(), "public", "logo-quotation.jpg"));
-  } catch {
-    return null; // logo missing on this server: the header shows the name only
-  }
+  return (logoBuf ??= Buffer.from(QUOTATION_LOGO_BASE64, "base64"));
 }
 
 function Heading({ children, big }: { children: string; big?: boolean }) {

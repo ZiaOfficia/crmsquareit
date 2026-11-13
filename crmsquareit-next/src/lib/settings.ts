@@ -33,6 +33,26 @@ export const DEFAULT_SETTINGS = {
   quotation_terms: "Payment: 50% advance to start the work, balance on completion.\nDelivery Timeline: From confirmation of scope.\nTaxes: Prices are exclusive of GST unless stated.",
   quotation_closing: "Thank you for the opportunity. We look forward to partnering with you.",
   bank_details: "",
+  /** Tax invoice (GST) PDF — seller block printed at the top. Address: one printed line per line. */
+  tinv_prefix: "SS",
+  tinv_seller_name: "Squareit Solutions",
+  tinv_seller_address: "1st and 2nd Floor, Ramanand Trade Center,\n34-A Chandralok Colony, Near Kapoorthala\nXing, Aliganj, Lucknow , Lucknow - 226024",
+  tinv_seller_email: "info@squareit.in",
+  tinv_seller_phone: "+91 7800854321",
+  tinv_seller_gstin: "09DMMPK3319F1ZX",
+  /** Place of supply equal to this state → CGST + SGST, otherwise IGST. */
+  tinv_seller_state: "Uttar Pradesh",
+  tinv_due_days: "7",
+  tinv_terms: "1. All invoices are due 7 days from the date of the invoice.\n2. We accept payments via bank transfer, credit card or QR code.",
+  tinv_declaration: "Thank you for your prompt payment. We appreciate your business and look forward to serving you again. Best regards!",
+  /** HR portal: paid leave days per calendar year. */
+  hr_leave_casual: "12",
+  hr_leave_sick: "6",
+  hr_leave_earned: "12",
+  /** Check-ins after this time (HH:MM, India time) are shown as late. */
+  hr_work_start: "10:00",
+  /** Weekly off days, 0 = Sunday … 6 = Saturday, comma separated. */
+  hr_weekly_off: "0",
 };
 export type SettingKey = keyof typeof DEFAULT_SETTINGS;
 export type Settings = Record<SettingKey, string>;
