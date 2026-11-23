@@ -65,6 +65,7 @@ model Staff {
   projects       Project[]       @relation("ProjectMembers")
   tasks          Task[]          @relation("TaskAssignees")
   tasksCreated   Task[]          @relation("TaskCreator")
+  tasksWatching  Task[]          @relation("TaskWatchers")
   taskComments   TaskComment[]
   timeEntries    TimeEntry[]
   tickets        Ticket[]        @relation("TicketAssignee")
@@ -423,6 +424,8 @@ model Task {
   sortOrder   Int           @default(0)
   createdAt   DateTime      @default(now())
   assignees   Staff[]       @relation("TaskAssignees")
+  /// Follow-up: Super Admin / HR people a TL attached so they can track the task (not assigned to them).
+  watchers    Staff[]       @relation("TaskWatchers")
   comments    TaskComment[]
   timeEntries TimeEntry[]
 }

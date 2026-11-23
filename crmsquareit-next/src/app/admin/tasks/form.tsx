@@ -3,25 +3,50 @@ import { db } from "@/lib/db";
 import { inputDate } from "@/lib/format";
 import { PRIORITY, TASK_STATUS } from "@/lib/constants";
 import type { ActionState } from "@/lib/forms";
+import type { CurrentUser } from "@/lib/auth";
+import { assignableStaff, canAttachFollowUp, followUpStaff, getTaskScope } from "@/lib/task-access";
 import { ActionForm, SubmitButton } from "@/components/client";
 import { Card, Field } from "@/components/ui";
 
+type Person = Pick<Staff, "id" | "firstName" | "lastName">;
+
+function PeoplePicker({ name, people, checked }: { name: string; people: Person[]; checked: Set<number> }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {people.map((s) => (
+        <label key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-blue-50">
+          <input type="checkbox" name={name} value={s.id} defaultChecked={checked.has(s.id)} /> {s.firstName} {s.lastName}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export async function TaskForm({
+  user,
   action,
   task,
   defaults,
 }: {
+  user: CurrentUser;
   action: (s: ActionState, f: FormData) => Promise<ActionState>;
-  task?: Task & { assignees: Staff[] };
+  task?: Task & { assignees: Person[]; watchers: Person[] };
   defaults?: { projectId?: number; assigneeId?: number };
 }) {
-  const [projects, customers, staff] = await Promise.all([
+  const scope = await getTaskScope(user);
+  const t = task;
+  const [projects, customers, assignable, followUps] = await Promise.all([
     db.project.findMany({ where: { status: { notIn: ["CANCELLED", "FINISHED"] } }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.customer.findMany({ where: { active: true }, orderBy: { company: "asc" }, select: { id: true, company: true } }),
-    db.staff.findMany({ where: { active: true }, orderBy: { firstName: "asc" } }),
+    assignableStaff(user),
+    canAttachFollowUp(scope) ? followUpStaff() : [],
   ]);
-  const t = task;
+  // Keep people already on the task visible even if they're outside this user's team.
+  const withExisting = (list: Person[], existing: Person[] = []) => [...list, ...existing.filter((e) => !list.some((p) => p.id === e.id))];
+  const staff = withExisting(assignable, t?.assignees);
+  const watchers = withExisting(followUps, canAttachFollowUp(scope) ? t?.watchers : []);
   const assigned = new Set(t ? t.assignees.map((a) => a.id) : defaults?.assigneeId ? [defaults.assigneeId] : []);
+  const watching = new Set(t?.watchers.map((w) => w.id) ?? []);
   return (
     <ActionForm action={action}>
       <Card>
@@ -54,14 +79,20 @@ export async function TaskForm({
           <Field label="Description" className="sm:col-span-2"><textarea name="description" rows={5} defaultValue={t?.description ?? ""} className="input" /></Field>
           <div className="sm:col-span-2">
             <span className="label">Assignees</span>
-            <div className="flex flex-wrap gap-2">
-              {staff.map((s) => (
-                <label key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm has-[:checked]:border-primary has-[:checked]:bg-blue-50">
-                  <input type="checkbox" name="assignees" value={s.id} defaultChecked={assigned.has(s.id)} /> {s.firstName} {s.lastName}
-                </label>
-              ))}
-            </div>
+            {scope.kind === "self" ? (
+              <p className="text-sm text-slate-500">This task is assigned to you.</p>
+            ) : (
+              <PeoplePicker name="assignees" people={staff} checked={assigned} />
+            )}
+            {scope.kind === "team" && <p className="mt-1 text-xs text-slate-400">You can assign tasks to yourself and the Executives in your team.</p>}
           </div>
+          {watchers.length > 0 && (
+            <div className="sm:col-span-2">
+              <span className="label">Follow-up (Super Admin / HR)</span>
+              <PeoplePicker name="watchers" people={watchers} checked={watching} />
+              <p className="mt-1 text-xs text-slate-400">They can see and comment on this task to track it. It isn&apos;t assigned to them.</p>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="billable" defaultChecked={t?.billable} /> Billable</label>
         </div>
         <div className="flex justify-end border-t border-slate-100 p-4"><SubmitButton>{t ? "Save task" : "Create task"}</SubmitButton></div>

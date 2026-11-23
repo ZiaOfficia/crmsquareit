@@ -10,7 +10,7 @@ export default async function NewTask({ searchParams }: { searchParams: Promise<
   return (
     <div className="max-w-4xl">
       <PageHeader title="New task" back={{ href: "/admin/tasks", label: "Tasks" }} />
-      <TaskForm action={saveTask.bind(null, null)} defaults={{ projectId: sp.projectId ? Number(sp.projectId) : undefined, assigneeId: user.id }} />
+      <TaskForm user={user} action={saveTask.bind(null, null)} defaults={{ projectId: sp.projectId ? Number(sp.projectId) : undefined, assigneeId: user.id }} />
     </div>
   );
 }

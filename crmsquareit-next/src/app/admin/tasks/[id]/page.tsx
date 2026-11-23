@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { canManageTask, canSeeTask } from "@/lib/task-access";
 import { requirePerm } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
@@ -18,13 +19,19 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
       project: true,
       customer: true,
       assignees: true,
+      watchers: true,
       createdBy: true,
       comments: { orderBy: { createdAt: "asc" }, include: { staff: true } },
       timeEntries: { orderBy: { startTime: "desc" }, include: { staff: true } },
     },
   });
   if (!t) notFound();
-  const canEdit = can(user, "tasks", "edit");
+  if (!(await canSeeTask(user, t.id))) redirect("/admin/forbidden");
+  const manage = await canManageTask(user, t);
+  const canEdit = can(user, "tasks", "edit") && manage;
+  // Assignees who didn't create the task can still move it along.
+  const canMove = can(user, "tasks", "edit") && (manage || t.assignees.some((a) => a.id === user.id));
+  const canDelete = can(user, "tasks", "delete") && manage;
   const myRunning = t.timeEntries.find((e) => !e.endTime && e.staffId === user.id);
   const totalMs = t.timeEntries.reduce((s, e) => s + ((e.endTime ?? new Date()).getTime() - e.startTime.getTime()), 0);
 
@@ -41,7 +48,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
               <button className={btn(myRunning ? "danger" : "success")}>{myRunning ? "■ Stop timer" : "▶ Start timer"}</button>
             </form>
             {canEdit && <ButtonLink variant="secondary" href={`/admin/tasks/${t.id}/edit`}>Edit</ButtonLink>}
-            {can(user, "tasks", "delete") && <ConfirmButton action={deleteTask} hidden={{ id: t.id }} />}
+            {canDelete && <ConfirmButton action={deleteTask} hidden={{ id: t.id }} />}
           </>
         }
       />
@@ -50,7 +57,7 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
           <Card title="Description">
             <p className="whitespace-pre-wrap p-5 text-sm text-slate-700">{t.description || <span className="text-slate-400">No description.</span>}</p>
           </Card>
-          {canEdit && (
+          {canMove && (
             <Card title="Status">
               <div className="flex flex-wrap gap-2 p-4">
                 {Object.entries(TASK_STATUS).map(([k, v]) => (
@@ -99,6 +106,13 @@ export default async function TaskPage({ params }: { params: Promise<{ id: strin
               {t.assignees.length === 0 && <li className="px-5 py-4 text-sm text-slate-400">Nobody assigned.</li>}
             </ul>
           </Card>
+          {t.watchers.length > 0 && (
+            <Card title="Follow-up">
+              <ul className="divide-y divide-slate-100">
+                {t.watchers.map((w) => <li key={w.id} className="flex items-center gap-3 px-5 py-2.5 text-sm"><Avatar name={`${w.firstName} ${w.lastName}`} size={28} /> {w.firstName} {w.lastName}</li>)}
+              </ul>
+            </Card>
+          )}
           <Card title={`Timesheet · ${formatDuration(totalMs)}`}>
             <ul className="divide-y divide-slate-100">
               {t.timeEntries.length === 0 && <li className="px-5 py-4 text-sm text-slate-400">No time logged yet.</li>}

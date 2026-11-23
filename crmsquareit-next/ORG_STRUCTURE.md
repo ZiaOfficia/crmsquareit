@@ -126,3 +126,19 @@ Department extras live in `DEPARTMENT_PERMISSIONS` (`src/lib/permissions.ts`) an
   optional Scope of Work pages (sections written with simple markup: `- bullet`, `-- sub-point`, `## heading`, `> note`),
   pricing summary, next steps, terms (fee lines added automatically), signature boxes, dark footer band.
   New fields: `Quotation.subtitle/scopeIntro/scope/steps/closing`, `LineItem.tag/note`. Icon for the PDF: `public/logo-mark.png`.
+
+## Tasks, to-dos and Team work (23 Nov 2026)
+
+Rules live in `src/lib/task-access.ts`. Every TL and Executive gets `TEAM_PERMISSIONS` (tasks) on top of their role.
+
+| Who            | Sees tasks of                         | Assigns to                    | Team work page (`/admin/team`)         |
+|----------------|---------------------------------------|-------------------------------|----------------------------------------|
+| Super Admin/HR | everyone                              | anyone                        | everyone's tasks + to-dos (read-only)  |
+| TL             | self + Executives in departments led  | self + those Executives       | self + those Executives                |
+| Executive      | own only (assigned to / created by)   | self only                     | no access                              |
+
+- Follow-up: TLs (and Super Admin/HR) can attach Super Admin / HR people to a task (`Task.watchers`).
+  They can see and comment on it; it isn't assigned to them. Tasks → "Follow-ups" lists the ones you follow.
+- Editing details and deleting: the creator, the creator's TL, or Super Admin/HR. Assignees can still change status and comment.
+- "Latest activity" (company-wide feed) on the dashboard is hidden from TLs and Executives.
+- Staff who aren't in any department keep the old behaviour (all tasks, by role permissions).

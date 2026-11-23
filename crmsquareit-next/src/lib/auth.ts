@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "./db";
 import { SESSION_COOKIE, verifySession } from "./session";
-import { can, DEPARTMENT_PERMISSIONS, mergePermissions, parsePermissions, type Action, type ModuleKey, type PermUser } from "./permissions";
+import { can, DEPARTMENT_PERMISSIONS, mergePermissions, parsePermissions, TEAM_PERMISSIONS, type Action, type ModuleKey, type PermUser } from "./permissions";
 import { BDE_CODE, canManageOrg, isHR, isTeamRole, type Membership } from "./org";
 
 export type CurrentUser = PermUser & {
@@ -42,7 +42,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     }));
   const hr = !staff.isAdmin && isHR({ memberships });
   // Role permissions plus whatever each of their departments adds (HR, BDE…).
-  const rolePerms = memberships.reduce((p, m) => mergePermissions(p, DEPARTMENT_PERMISSIONS[m.departmentCode] ?? {}), parsePermissions(staff.role?.permissions));
+  let rolePerms = memberships.reduce((p, m) => mergePermissions(p, DEPARTMENT_PERMISSIONS[m.departmentCode] ?? {}), parsePermissions(staff.role?.permissions));
+  // Every TL and Executive keeps tasks; what they can see is limited in src/lib/task-access.ts.
+  if (memberships.length) rolePerms = mergePermissions(rolePerms, TEAM_PERMISSIONS);
   return {
     id: staff.id,
     firstName: staff.firstName,

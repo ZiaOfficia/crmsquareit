@@ -9,6 +9,7 @@ import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
 import { Kanban } from "@/components/kanban";
 import { setTaskStatus } from "./actions";
+import { assignableStaff, canTrackTeam, getTaskScope, visibleTaskWhere } from "@/lib/task-access";
 
 export const metadata = { title: "Tasks" };
 const COLORS: Record<string, string> = { NOT_STARTED: "#94a3b8", IN_PROGRESS: "#4f74c4", TESTING: "#7c5cc4", AWAITING_FEEDBACK: "#e0a400", COMPLETE: "#27ae57" };
@@ -17,14 +18,22 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const user = await requirePerm("tasks");
   const sp = await searchParams;
   const view = sp.view === "kanban" ? "kanban" : "list";
-  const where: Prisma.TaskWhereInput = {};
+  const scope = await getTaskScope(user);
+  // Executives see their own tasks, TLs their team's, Super Admin / HR everyone's.
+  const where: Prisma.TaskWhereInput = { AND: [await visibleTaskWhere(user)] };
   if (sp.mine === "1") where.assignees = { some: { id: user.id } };
+  else if (sp.person && scope.kind !== "self") where.assignees = { some: { id: Number(sp.person) } };
+  if (sp.following === "1") where.watchers = { some: { id: user.id } };
   if (sp.status) where.status = sp.status;
   else if (view === "list" && sp.all !== "1") where.status = { not: "COMPLETE" };
   if (sp.priority) where.priority = sp.priority;
   if (sp.project) where.projectId = Number(sp.project);
   if (sp.q) where.name = { contains: sp.q };
-  const projects = await db.project.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const [projects, people] = await Promise.all([
+    db.project.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    scope.kind === "self" ? [] : assignableStaff(user),
+  ]);
+  const tracker = canTrackTeam(scope);
   const today = new Date(new Date().toDateString());
 
   const toggle = (key: string, val: string) => {
@@ -58,7 +67,10 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       <FilterSelect name="project" placeholder="All projects" options={projects.map((p) => ({ value: String(p.id), label: p.name }))} />
       <FilterSelect name="priority" placeholder="Any priority" options={Object.entries(PRIORITY).map(([value, s]) => ({ value, label: s.label }))} />
       {view === "list" && <FilterSelect name="status" placeholder="Open tasks" options={Object.entries(TASK_STATUS).map(([value, s]) => ({ value, label: s.label }))} />}
+      {people.length > 1 && <FilterSelect name="person" placeholder="Everyone" options={people.map((p) => ({ value: String(p.id), label: `${p.firstName} ${p.lastName}`.trim() }))} />}
       <Link href={toggle("mine", "1")} className={btn(sp.mine === "1" ? "primary" : "secondary")}>My tasks</Link>
+      {tracker && scope.kind === "all" && <Link href={toggle("following", "1")} className={btn(sp.following === "1" ? "primary" : "secondary")}>Follow-ups</Link>}
+      {tracker && <Link href="/admin/team" className={btn("secondary")}>Team work</Link>}
     </div>
   );
 

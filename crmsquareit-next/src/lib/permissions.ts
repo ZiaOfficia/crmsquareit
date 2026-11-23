@@ -50,6 +50,12 @@ export const BDE_PERMISSIONS: PermissionMap = {
   quotations: ["view", "create", "edit", "delete"],
 };
 
+/** What every TL and Executive (any department) gets: their own tasks.
+ *  Which tasks they see and may edit or delete is decided in src/lib/task-access.ts. */
+export const TEAM_PERMISSIONS: PermissionMap = {
+  tasks: ["view", "create", "edit", "delete"],
+};
+
 /** Extra access by department code. Departments not listed get nothing extra (yet). */
 export const DEPARTMENT_PERMISSIONS: Record<string, PermissionMap> = {
   HR: HR_PERMISSIONS,

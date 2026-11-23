@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { docNumber } from "@/lib/sales";
+import { visibleTaskWhere } from "@/lib/task-access";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Search" };
@@ -17,7 +18,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     can(user, "leads") ? db.lead.findMany({ where: { OR: [{ name: { contains: q } }, { company: { contains: q } }, { email: { contains: q } }, { phone: { contains: q } }] }, take: 8 }) : [],
     can(user, "invoices") && Number.isFinite(n) ? db.invoice.findMany({ where: { number: n }, include: { customer: true }, take: 8 }) : [],
     can(user, "projects") ? db.project.findMany({ where: { name: { contains: q } }, take: 8 }) : [],
-    can(user, "tasks") ? db.task.findMany({ where: { name: { contains: q } }, take: 8 }) : [],
+    can(user, "tasks") ? db.task.findMany({ where: { AND: [{ name: { contains: q } }, await visibleTaskWhere(user)] }, take: 8 }) : [],
     can(user, "tickets") ? db.ticket.findMany({ where: { subject: { contains: q } }, take: 8 }) : [],
   ]);
   const groups = [

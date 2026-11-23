@@ -25,6 +25,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const today = new Date(now.toDateString());
   const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  // The company-wide feed is for Super Admin / HR only, not TLs or Executives.
+  const showActivity = user.isAdmin || user.isHR || user.memberships.length === 0;
 
   const [openInvoices, paidThisMonth, leadsThisMonth, activeProjects, myTasks, openTickets, payments, expenses, leadStatuses, overdue, activities, todos] =
     await Promise.all([
@@ -48,7 +50,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         orderBy: { dueDate: "asc" },
         take: 5,
       }),
-      db.activity.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { staff: { select: { firstName: true, lastName: true } } } }),
+      showActivity ? db.activity.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { staff: { select: { firstName: true, lastName: true } } } }) : [],
       db.todo.findMany({ where: { staffId: user.id }, orderBy: [{ done: "asc" }, { createdAt: "desc" }], take: 20 }),
     ]);
 
@@ -150,7 +152,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <TodoWidget todos={todos.map((t) => ({ id: t.id, text: t.text, done: t.done }))} />
       </div>
 
-      <Card title="Latest activity">
+      {showActivity && <Card title="Latest activity">
         {activities.length === 0 ? (
           <EmptyState title="No activity yet" text="Actions across the CRM will appear here." />
         ) : (
@@ -165,7 +167,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             ))}
           </ul>
         )}
-      </Card>
+      </Card>}
     </div>
   );
 }

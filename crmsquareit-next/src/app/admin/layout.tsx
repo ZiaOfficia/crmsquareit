@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { AnnouncementBanner, type InboxItem } from "@/components/announcements";
 import { db } from "@/lib/db";
+import { canTrackTeam, getTaskScope } from "@/lib/task-access";
 import { membershipLabel } from "@/lib/org";
 import { announcementOrder, inboxFor, unreadWhere } from "@/lib/announcements";
 
@@ -11,7 +12,9 @@ const BANNER_MAX = 3;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const allowed = Object.fromEntries(MODULES.map((m) => [m.key, can(user, m.key)]));
+  const allowed: Record<string, boolean> = Object.fromEntries(MODULES.map((m) => [m.key, can(user, m.key)]));
+  // "Team work" (tasks + to-dos of others): Super Admin, HR and TLs.
+  allowed.team = canTrackTeam(await getTaskScope(user));
   const [openTickets, officeReports, inbox, bannerRows, pendingLeave] = await Promise.all([
     allowed.tickets ? db.ticket.count({ where: { status: "OPEN" } }) : 0,
     // Super Admin: months HR has submitted and that are waiting for review.
