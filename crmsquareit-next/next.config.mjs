@@ -8,5 +8,15 @@ const nextConfig = {
   outputFileTracingRoot: dirname(fileURLToPath(import.meta.url)),
   // PDF generation (quotations) runs in Node and shouldn't be bundled by webpack.
   serverExternalPackages: ["@react-pdf/renderer", "@react-pdf/pdfkit", "pdfkit", "fontkit"],
+  // pdfkit loads its built-in fonts (Helvetica…) with a runtime require("#standard-fonts/…"),
+  // which Vercel's file tracing can't follow, so those files were left out of the deployment
+  // and every PDF route crashed on Vercel. Ship them explicitly.
+  outputFileTracingIncludes: {
+    "/admin/**": [
+      "./node_modules/pdfkit/package.json",
+      "./node_modules/pdfkit/js/standard-fonts/**/*",
+      "./node_modules/pdfkit/js/data/**/*",
+    ],
+  },
 };
 export default nextConfig;
