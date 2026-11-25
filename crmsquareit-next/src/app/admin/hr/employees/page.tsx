@@ -16,7 +16,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const staff = await db.staff.findMany({
     where: {
       active: inactive !== "1",
-      ...(q ? { OR: [{ firstName: { contains: q, mode: "insensitive" } }, { lastName: { contains: q, mode: "insensitive" } }, { employeeCode: { contains: q, mode: "insensitive" } }, { designation: { contains: q, mode: "insensitive" } }] } : {}),
+      ...(q ? { OR: [{ firstName: { contains: q } }, { lastName: { contains: q } }, { employeeCode: { contains: q } }, { designation: { contains: q } }] } : {}),
     },
     orderBy: { firstName: "asc" },
     include: { orgMemberships: { include: { department: true }, take: 1 } },

@@ -24,9 +24,9 @@ export default async function TaxInvoicesPage({ searchParams }: { searchParams: 
   if (sp.q) {
     const q = sp.q.trim();
     where.OR = [
-      { number: { contains: q, mode: "insensitive" } },
-      { billName: { contains: q, mode: "insensitive" } },
-      { billGstin: { contains: q, mode: "insensitive" } },
+      { number: { contains: q } },
+      { billName: { contains: q } },
+      { billGstin: { contains: q } },
     ];
   }
   const [rows, total, sums, years] = await Promise.all([

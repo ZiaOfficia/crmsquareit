@@ -30,9 +30,9 @@ export default async function QuotationsPage({ searchParams }: { searchParams: P
   if (sp.q) {
     const n = parseInt(sp.q.replace(/\D/g, ""), 10);
     where.OR = [
-      { subject: { contains: sp.q, mode: "insensitive" } },
-      { clientName: { contains: sp.q, mode: "insensitive" } },
-      { clientCompany: { contains: sp.q, mode: "insensitive" } },
+      { subject: { contains: sp.q } },
+      { clientName: { contains: sp.q } },
+      { clientCompany: { contains: sp.q } },
       ...(Number.isFinite(n) ? [{ number: n }] : []),
     ];
   }

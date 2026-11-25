@@ -1,5 +1,5 @@
 // Squareit CRM — database schema
-// Database: PostgreSQL (Prisma Postgres on Vercel). Set DATABASE_URL
+// Database: MySQL (GoDaddy Plesk). Set DATABASE_URL
 // in .env, then run `npm run setup` once to create tables + admin.
 
 generator client {
@@ -7,19 +7,19 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model Setting {
   key   String @id
-  value String
+  value String @db.LongText
 }
 
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
-  permissions String  @default("{}") // JSON: { module: ["view","create","edit","delete"] }
+  permissions String @db.VarChar(2000) @default("{}") // JSON: { module: ["view","create","edit","delete"] }
   staff       Staff[]
 }
 
@@ -30,7 +30,7 @@ model Staff {
   email      String    @unique
   password   String
   /// The current password, AES-256-GCM encrypted (src/lib/passwords.ts) so Super Admin and HR can view it.
-  passwordView  String?
+  passwordView  String? @db.Text
   passwordSetAt DateTime?
   phone      String?
   isAdmin    Boolean   @default(false)
@@ -46,7 +46,7 @@ model Staff {
   joinDate       DateTime? @db.Date
   dob            DateTime? @db.Date
   gender         String?
-  address        String?
+  address        String? @db.Text
   emergencyName  String?
   emergencyPhone String?
   bankName       String?
@@ -107,13 +107,13 @@ model Customer {
   vat       String?
   phone     String?
   website   String?
-  address   String?
+  address   String? @db.Text
   city      String?
   state     String?
   zip       String?
   country   String?
   currency  String?
-  notes     String?
+  notes     String? @db.Text
   active    Boolean   @default(true)
   createdAt DateTime  @default(now())
 
@@ -142,7 +142,7 @@ model CustomerPayment {
   mode        String?
   date        DateTime
   reference   String?
-  note        String?
+  note        String? @db.Text
   staffId     Int?
   staff       Staff?     @relation(fields: [staffId], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
@@ -188,11 +188,11 @@ model Lead {
   email       String?
   phone       String?
   website     String?
-  address     String?
+  address     String? @db.Text
   city        String?
   country     String?
   value       Float       @default(0)
-  description String?
+  description String? @db.Text
   statusId    Int
   status      LeadStatus  @relation(fields: [statusId], references: [id])
   sourceId    Int?
@@ -220,7 +220,7 @@ model FollowUp {
   staffId   Int?
   staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   channel   String   @default("CALL") // CALL WHATSAPP EMAIL MEETING
-  note      String?
+  note      String? @db.Text
   outcome   String?  // HOT COLD JUNK, or null when still undecided
   nextDate  DateTime?
   createdAt DateTime @default(now())
@@ -232,7 +232,7 @@ model Note {
   id        Int      @id @default(autoincrement())
   relType   String   // lead | customer | project ...
   relId     Int
-  content   String
+  content   String @db.Text
   staffId   Int?
   staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
@@ -244,7 +244,7 @@ model Activity {
   id          Int      @id @default(autoincrement())
   relType     String
   relId       Int
-  description String
+  description String @db.Text
   staffId     Int?
   staff       Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
@@ -260,8 +260,8 @@ model Tax {
 
 model Item {
   id              Int     @id @default(autoincrement())
-  description     String
-  longDescription String?
+  description     String @db.Text
+  longDescription String? @db.Text
   rate            Float
   unit            String?
   taxRate         Float   @default(0)
@@ -291,8 +291,8 @@ model Invoice {
   taxTotal        Float      @default(0)
   adjustment      Float      @default(0)
   total           Float      @default(0)
-  clientNote      String?
-  terms           String?
+  clientNote      String? @db.Text
+  terms           String? @db.Text
   hash            String     @unique
   sentAt          DateTime?
   createdAt       DateTime   @default(now())
@@ -319,8 +319,8 @@ model Estimate {
   taxTotal        Float      @default(0)
   adjustment      Float      @default(0)
   total           Float      @default(0)
-  clientNote      String?
-  terms           String?
+  clientNote      String? @db.Text
+  terms           String? @db.Text
   hash            String     @unique
   invoiceId       Int?       @unique
   invoice         Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
@@ -336,15 +336,15 @@ model LineItem {
   estimate        Estimate? @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   quotationId     Int?
   quotation       Quotation? @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  description     String
-  longDescription String?
+  description     String @db.Text
+  longDescription String? @db.Text
   qty             Float     @default(1)
   rate            Float     @default(0)
   unit            String?
   taxRate         Float     @default(0)
   sortOrder       Int       @default(0)
   tag             String?   // quotations: short label on the service card, e.g. "DEV"
-  note            String?   // quotations: line under the service in the pricing summary, e.g. "Timeline: 10-15 Days"
+  note            String? @db.Text   // quotations: line under the service in the pricing summary, e.g. "Timeline: 10-15 Days"
 }
 
 model Payment {
@@ -355,7 +355,7 @@ model Payment {
   mode          String
   date          DateTime
   transactionId String?
-  note          String?
+  note          String? @db.Text
   createdAt     DateTime @default(now())
 }
 
@@ -379,7 +379,7 @@ model Expense {
   project     Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   paymentMode String?
   reference   String?
-  note        String?
+  note        String? @db.Text
   billable    Boolean         @default(false)
   createdAt   DateTime        @default(now())
 }
@@ -394,7 +394,7 @@ model Project {
   rate        Float      @default(0)
   startDate   DateTime
   deadline    DateTime?
-  description String?
+  description String? @db.Text
   progress    Int        @default(0)
   createdAt   DateTime   @default(now())
   members     Staff[]    @relation("ProjectMembers")
@@ -408,7 +408,7 @@ model Project {
 model Task {
   id          Int           @id @default(autoincrement())
   name        String
-  description String?
+  description String? @db.Text
   priority    String        @default("MEDIUM")      // LOW MEDIUM HIGH URGENT
   status      String        @default("NOT_STARTED") // NOT_STARTED IN_PROGRESS TESTING AWAITING_FEEDBACK COMPLETE
   startDate   DateTime      @default(now())
@@ -436,7 +436,7 @@ model TaskComment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   staffId   Int?
   staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  content   String
+  content   String @db.Text
   createdAt DateTime @default(now())
 }
 
@@ -448,7 +448,7 @@ model TimeEntry {
   staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
   startTime DateTime
   endTime   DateTime?
-  note      String?
+  note      String? @db.Text
 }
 
 model Department {
@@ -461,7 +461,7 @@ model Department {
 model Ticket {
   id           Int           @id @default(autoincrement())
   subject      String
-  message      String
+  message      String @db.Text
   customerId   Int?
   customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   contactId    Int?
@@ -488,7 +488,7 @@ model TicketReply {
   staffId   Int?
   staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   fromName  String?
-  message   String
+  message   String @db.Text
   createdAt DateTime @default(now())
 }
 
@@ -496,7 +496,7 @@ model Todo {
   id        Int      @id @default(autoincrement())
   staffId   Int
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  text      String
+  text      String @db.Text
   done      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
@@ -541,7 +541,7 @@ model DepartmentMember {
 model Announcement {
   id          Int                @id @default(autoincrement())
   title       String
-  message     String
+  message     String @db.Text
   audience    String             // ALL | DEPARTMENTS | PEOPLE
   urgent      Boolean            @default(false)
   pinned      Boolean            @default(false)
@@ -581,7 +581,7 @@ model OfficeExpense {
   paidTo      String?  // vendor / shop / person
   paymentMode String?
   reference   String?  // bill / receipt number
-  note        String?
+  note        String? @db.Text
   createdById Int?
   createdBy   Staff?   @relation("OfficeExpenseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
@@ -599,14 +599,14 @@ model OfficeExpenseReport {
   status        String    // SUBMITTED | APPROVED | RETURNED
   total         Float     // snapshot at submission
   count         Int
-  note          String?   // HR's note to the Super Admin
+  note          String? @db.Text   // HR's note to the Super Admin
   submittedById Int?
   submittedBy   Staff?    @relation("OfficeReportSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
   submittedAt   DateTime  @default(now())
   reviewedById  Int?
   reviewedBy    Staff?    @relation("OfficeReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt    DateTime?
-  reviewNote    String?
+  reviewNote    String? @db.Text
 }
 
 // ─── Quotations (made by BDE) ───────────────────────────────────────────
@@ -619,7 +619,7 @@ model Quotation {
   number          Int
   prefix          String     @default("QT-")
   subject         String     // "Quotation for", e.g. "Website Development"
-  subtitle        String?    // line under it, e.g. "Doctor / clinic website"
+  subtitle        String? @db.Text    // line under it, e.g. "Doctor / clinic website"
   leadId          Int?
   lead            Lead?      @relation(fields: [leadId], references: [id], onDelete: SetNull)
   customerId      Int?
@@ -628,7 +628,7 @@ model Quotation {
   clientCompany   String?
   clientEmail     String?
   clientPhone     String?
-  clientAddress   String?
+  clientAddress   String? @db.Text
   date            DateTime
   validUntil      DateTime?
   status          String     @default("DRAFT") // DRAFT SENT ACCEPTED DECLINED
@@ -639,12 +639,12 @@ model Quotation {
   taxTotal        Float      @default(0)
   adjustment      Float      @default(0)
   total           Float      @default(0)
-  intro           String?    // "Engagement overview" paragraph
-  scopeIntro      String?    // "Scope of work" opening paragraph
+  intro           String? @db.Text    // "Engagement overview" paragraph
+  scopeIntro      String? @db.Text    // "Scope of work" opening paragraph
   scope           Json?      // [{ title, body }]: numbered scope sections (body uses simple line markup)
   steps           Json?      // [{ title, text }]: "Acceptance & next steps"
-  terms           String?    // one term per line, "Label: text"
-  closing         String?    // closing line, e.g. "Thank you for the opportunity..."
+  terms           String? @db.Text    // one term per line, "Label: text"
+  closing         String? @db.Text    // closing line, e.g. "Thank you for the opportunity..."
   createdById     Int?
   createdBy       Staff?     @relation("QuotationCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt       DateTime   @default(now())
@@ -665,7 +665,7 @@ model Attendance {
   status     String    @default("PRESENT") // PRESENT ABSENT HALF_DAY LEAVE WFH
   checkIn    DateTime?
   checkOut   DateTime?
-  note       String?
+  note       String? @db.Text
   markedById Int?
   markedBy   Staff?    @relation("AttendanceMarker", fields: [markedById], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
@@ -684,11 +684,11 @@ model LeaveRequest {
   toDate       DateTime  @db.Date
   halfDay      Boolean   @default(false)
   days         Float
-  reason       String?
+  reason       String? @db.Text
   status       String    @default("PENDING") // PENDING APPROVED REJECTED CANCELLED
   reviewedById Int?
   reviewedBy   Staff?    @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewNote   String?
+  reviewNote   String? @db.Text
   reviewedAt   DateTime?
   createdAt    DateTime  @default(now())
 
@@ -714,7 +714,7 @@ model Payslip {
   bonus       Float     @default(0)
   deduction   Float     @default(0)
   net         Float
-  note        String?
+  note        String? @db.Text
   status      String    @default("DRAFT") // DRAFT PAID
   paidAt      DateTime?
   createdAt   DateTime  @default(now())
@@ -735,17 +735,17 @@ model TaxInvoice {
   issueDate     DateTime
   dueDate       DateTime?
   billName      String
-  billAddress   String?
+  billAddress   String? @db.Text
   billGstin     String?
   shipName      String?
-  shipAddress   String?
+  shipAddress   String? @db.Text
   placeOfSupply String
   items         Json
   subtotal      Float    @default(0)
   taxTotal      Float    @default(0)
   total         Float    @default(0)
-  terms         String?
-  declaration   String?
+  terms         String? @db.Text
+  declaration   String? @db.Text
   status        String   @default("UNPAID") // UNPAID PAID CANCELLED
   createdById   Int?
   createdAt     DateTime @default(now())
