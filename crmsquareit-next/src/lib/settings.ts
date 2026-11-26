@@ -53,6 +53,8 @@ export const DEFAULT_SETTINGS = {
   hr_work_start: "10:00",
   /** Weekly off days, 0 = Sunday … 6 = Saturday, comma separated. */
   hr_weekly_off: "0",
+  /** CRM Assistant: notes taught by Super Admin / HR, as a JSON list. */
+  assistant_notes: "[]",
 };
 export type SettingKey = keyof typeof DEFAULT_SETTINGS;
 export type Settings = Record<SettingKey, string>;

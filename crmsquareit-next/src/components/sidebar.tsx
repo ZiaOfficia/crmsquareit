@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import clsx from "clsx";
 import {
   LayoutDashboard, Users, Target, FileText, FileSignature, CreditCard, Receipt, FolderKanban,
-  CheckSquare, LifeBuoy, BarChart3, UserCog, Settings, Menu, X, Megaphone, Building2, ScrollText, CalendarCheck, Briefcase, FileCheck, UsersRound,
+  CheckSquare, LifeBuoy, BarChart3, UserCog, Settings, Menu, X, Megaphone, Building2, ScrollText, CalendarCheck, Briefcase, FileCheck, UsersRound, Sparkles,
 } from "lucide-react";
 
 type Item = { href: string; label: string; icon: React.ElementType; perm?: string; adminOnly?: boolean; badge?: string };
@@ -52,6 +52,7 @@ const groups: { title?: string; items: Item[] }[] = [
       { href: "/admin/reports", label: "Reports", icon: BarChart3, perm: "reports" },
       { href: "/admin/staff", label: "Staff & roles", icon: UserCog, perm: "staff" },
       { href: "/admin/settings", label: "Settings", icon: Settings, perm: "settings" },
+      { href: "/admin/assistant", label: "Teach assistant", icon: Sparkles, perm: "assistant" },
     ],
   },
 ];

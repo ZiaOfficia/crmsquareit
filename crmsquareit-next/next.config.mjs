@@ -16,6 +16,8 @@ const nextConfig = {
       "./node_modules/pdfkit/package.json",
       "./node_modules/pdfkit/js/standard-fonts/**/*",
       "./node_modules/pdfkit/js/data/**/*",
+      // The CRM Assistant reads its guides from here at runtime.
+      "./src/knowledge/**/*",
     ],
   },
 };

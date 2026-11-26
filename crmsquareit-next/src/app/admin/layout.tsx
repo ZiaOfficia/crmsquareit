@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { canTrackTeam, getTaskScope } from "@/lib/task-access";
 import { membershipLabel } from "@/lib/org";
 import { announcementOrder, inboxFor, unreadWhere } from "@/lib/announcements";
+import { AssistantWidget } from "@/components/assistant";
 
 const BANNER_MAX = 3;
 
@@ -14,7 +15,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await requireUser();
   const allowed: Record<string, boolean> = Object.fromEntries(MODULES.map((m) => [m.key, can(user, m.key)]));
   // "Team work" (tasks + to-dos of others): Super Admin, HR and TLs.
-  allowed.team = canTrackTeam(await getTaskScope(user));
+  const scope = await getTaskScope(user);
+  allowed.team = canTrackTeam(scope);
+  // "Teach the assistant": Super Admin and HR.
+  allowed.assistant = user.isAdmin || user.isHR;
+  // Starter questions in the assistant, picked for this person.
+  const suggestions = [
+    user.isBDE && "How do I log a follow-up on a lead?",
+    user.isBDE && "How do I convert a lead into a customer?",
+    user.isHR && "How do I generate payroll for the month?",
+    user.isHR && "How do I approve a leave request?",
+    user.isAdmin && "How do I give someone access to Invoices?",
+    scope.kind === "team" && "How do I see my team's tasks and to-dos?",
+    allowed.tasks && "How do I schedule a task and assign it?",
+    "How do I apply for leave?",
+    "How do I check in for attendance?",
+    "What should I do today?",
+  ].filter((s): s is string => !!s).slice(0, 4);
   const [openTickets, officeReports, inbox, bannerRows, pendingLeave] = await Promise.all([
     allowed.tickets ? db.ticket.count({ where: { status: "OPEN" } }) : 0,
     // Super Admin: months HR has submitted and that are waiting for review.
@@ -50,6 +67,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {children}
         </main>
       </div>
+      <AssistantWidget firstName={user.firstName} suggestions={suggestions} canTeach={allowed.assistant} />
     </div>
   );
 }

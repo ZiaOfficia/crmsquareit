@@ -106,3 +106,94 @@ function parseJsonLoose(text: string): unknown {
     throw new AiError("The AI's answer wasn't in the expected format. Please try again.");
   }
 }
+
+export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+
+/** Turns a failed response into a friendly AiError (same wording as chatJson). */
+async function failure(p: Provider, res: Response): Promise<AiError> {
+  const body = await res.text().catch(() => "");
+  if (res.status === 401 || res.status === 403) return new AiError(`The AI key was rejected by ${p.name}. Check GROQ_API_KEY / AI_API_KEY in .env.`);
+  if (res.status === 429) return new AiError("The free AI limit was reached for the moment. Wait a minute and try again.");
+  if (res.status === 404 && p.name === "Ollama") return new AiError(`Ollama doesn't have the model “${p.model}”. Run: ollama pull ${p.model}`);
+  console.error(`[ai] ${p.name} ${res.status}: ${body.slice(0, 500)}`);
+  return new AiError(`The AI service returned an error (${res.status}). Try again in a moment.`);
+}
+
+/**
+ * Streams a chat reply as plain text. Throws AiError before the stream starts
+ * if the provider can't be reached or refuses the request.
+ */
+export async function chatStream(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number; signal?: AbortSignal } = {}, retried = false): Promise<ReadableStream<Uint8Array>> {
+  const p = aiProvider();
+  let res: Response;
+  try {
+    res = await fetch(`${p.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(p.apiKey ? { Authorization: `Bearer ${p.apiKey}` } : {}) },
+      body: JSON.stringify({
+        model: p.model,
+        temperature: opts.temperature ?? 0.2,
+        max_tokens: opts.maxTokens ?? 4000,
+        ...(p.model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" } : {}),
+        stream: true,
+        messages,
+      }),
+      signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000),
+      cache: "no-store",
+    });
+  } catch (e) {
+    if (p.name === "Ollama")
+      throw new AiError("AI isn't set up yet. Add a free GROQ_API_KEY to the environment (get one at console.groq.com/keys), or install Ollama and run “ollama pull qwen2.5:7b”.");
+    if (e instanceof Error && e.name === "TimeoutError") throw new AiError("The AI took too long to answer. Try again.");
+    throw new AiError(`Couldn't reach the AI service (${p.name}). Check the internet connection and try again.`);
+  }
+  if (res.status === 404 && p.name !== "Ollama" && !retried) {
+    const next = await findOpenModel(p);
+    if (next) {
+      console.warn(`[ai] ${p.name}: model ${p.model} unavailable, switching to ${next}`);
+      fallbackModel = next;
+      return chatStream(messages, opts, true);
+    }
+  }
+  if (!res.ok || !res.body) throw await failure(p, res);
+
+  // Server-sent events: "data: {json}\n\n" … "data: [DONE]". Pass on only the answer text.
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      for (;;) {
+        const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }));
+        if (done) {
+          controller.close();
+          return;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        let out = "";
+        for (const line of lines) {
+          const data = line.trim();
+          if (!data.startsWith("data:")) continue;
+          const json = data.slice(5).trim();
+          if (json === "[DONE]") continue;
+          try {
+            const delta = (JSON.parse(json) as { choices?: { delta?: { content?: string } }[] }).choices?.[0]?.delta?.content;
+            if (delta) out += delta;
+          } catch {
+            /* ignore keep-alive or partial lines */
+          }
+        }
+        if (out) {
+          controller.enqueue(encoder.encode(out));
+          return;
+        }
+      }
+    },
+    cancel() {
+      reader.cancel().catch(() => {});
+    },
+  });
+}
