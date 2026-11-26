@@ -11,6 +11,7 @@ import { can } from "@/lib/permissions";
 import { isLocked, monthKey, officeCategoryLabel, parseMonth, REPORT_STATUS, shiftMonth } from "@/lib/office-expenses";
 import { Avatar, Badge, ButtonLink, Card, EmptyState, StatusBadge } from "@/components/ui";
 import { LiveRefresh } from "@/components/announcements";
+import { Greeting } from "@/components/greeting";
 
 const DAY = 86_400_000;
 
@@ -83,7 +84,7 @@ export async function SuperAdminPanel({ user, tab }: { user: CurrentUser; tab?: 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{hr ? "HR" : "Super Admin"}</p>
-          <h1 className="text-2xl font-bold text-ink">{hr ? "HR dashboard" : "Control panel"}</h1>
+          <h1 className="text-2xl font-bold text-ink"><Greeting name={user.firstName} suffix="👋" /></h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <LiveRefresh />

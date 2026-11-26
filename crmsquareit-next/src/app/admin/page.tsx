@@ -10,6 +10,7 @@ import { TASK_STATUS, PRIORITY } from "@/lib/constants";
 import { TodoWidget } from "./todo-widget";
 import { SuperAdminPanel } from "./super-admin-panel";
 import { BdeDashboard } from "./bde-dashboard";
+import { Greeting } from "@/components/greeting";
 
 export const metadata = { title: "Dashboard" };
 
@@ -72,7 +73,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Good {now.getHours() < 12 ? "morning" : now.getHours() < 17 ? "afternoon" : "evening"}, {user.firstName} 👋</h1>
+        <h1 className="text-2xl font-bold text-ink"><Greeting name={user.firstName} suffix="👋" /></h1>
         <p className="mt-1 text-sm text-slate-500">Here's what's happening at {settings.company_name} today.</p>
       </div>
 

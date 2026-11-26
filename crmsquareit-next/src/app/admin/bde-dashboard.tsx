@@ -15,6 +15,7 @@ import { Badge, ButtonLink, Card, EmptyState, StatusBadge, btn } from "@/compone
 import { StageButtons } from "@/components/lead-flow";
 import { convertLead } from "./leads/actions";
 import { TodoWidget } from "./todo-widget";
+import { Greeting } from "@/components/greeting";
 
 const DAY = 86_400_000;
 /** A lead not contacted for this many days needs a follow-up, even without a date set. */
@@ -95,7 +96,7 @@ export async function BdeDashboard({ user, stage: stageParam }: { user: CurrentU
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">BDE{isTL ? " · Team Lead" : ""}</p>
           <h1 className="text-2xl font-bold text-ink">
-            Good {now.getHours() < 12 ? "morning" : now.getHours() < 17 ? "afternoon" : "evening"}, {user.firstName}
+            <Greeting name={user.firstName} />
           </h1>
           <p className="mt-1 text-sm text-slate-500">{isTL ? "Your team's lead flow, from first contact to customer." : "Your leads, from first contact to customer."}</p>
         </div>
