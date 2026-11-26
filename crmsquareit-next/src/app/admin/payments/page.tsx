@@ -8,6 +8,7 @@ import { getSettings } from "@/lib/settings";
 import { Card, EmptyState, PageHeader, Stat, Table } from "@/components/ui";
 import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
+import { indiaMonthStart, indiaYearStart } from "@/lib/india-time";
 
 export const metadata = { title: "Payments" };
 
@@ -19,8 +20,8 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const where: Prisma.PaymentWhereInput = {};
   if (sp.mode) where.mode = sp.mode;
   if (sp.q) where.OR = [{ transactionId: { contains: sp.q } }, { invoice: { customer: { company: { contains: sp.q } } } }];
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const monthStart = indiaMonthStart();
+  const yearStart = indiaYearStart();
   const [rows, total, modes, month, year] = await Promise.all([
     db.payment.findMany({ where, skip, take, orderBy: { date: "desc" }, include: { invoice: { include: { customer: { select: { id: true, company: true } } } } } }),
     db.payment.count({ where }),

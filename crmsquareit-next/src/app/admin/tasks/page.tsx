@@ -10,6 +10,7 @@ import { Pagination, pageArgs } from "@/components/pagination";
 import { Kanban } from "@/components/kanban";
 import { setTaskStatus } from "./actions";
 import { assignableStaff, canTrackTeam, getTaskScope, visibleTaskWhere } from "@/lib/task-access";
+import { indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Tasks" };
 const COLORS: Record<string, string> = { NOT_STARTED: "#94a3b8", IN_PROGRESS: "#4f74c4", TESTING: "#7c5cc4", AWAITING_FEEDBACK: "#e0a400", COMPLETE: "#27ae57" };
@@ -34,7 +35,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     scope.kind === "self" ? [] : assignableStaff(user),
   ]);
   const tracker = canTrackTeam(scope);
-  const today = new Date(new Date().toDateString());
+  const today = indiaToday();
 
   const toggle = (key: string, val: string) => {
     const p = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "page") as [string, string][]);

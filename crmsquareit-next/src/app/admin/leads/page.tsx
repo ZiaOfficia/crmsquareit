@@ -11,6 +11,7 @@ import { Kanban } from "@/components/kanban";
 import { moveLead } from "./actions";
 import { docNumber } from "@/lib/sales";
 import { LEAD_STAGES, STAGE_INFO, stageInclude, stageOf, stageWhere, type LeadStage } from "@/lib/lead-flow";
+import { indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Leads" };
 
@@ -132,7 +133,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   }
 
   const { page, skip, take } = pageArgs(sp.page);
-  const today = new Date(new Date().toDateString());
+  const today = indiaToday();
   const tomorrow = new Date(today.getTime() + 86_400_000);
   const [rows, total] = await Promise.all([
     db.lead.findMany({

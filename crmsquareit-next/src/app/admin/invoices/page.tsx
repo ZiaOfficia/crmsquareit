@@ -9,6 +9,7 @@ import { INVOICE_STATUS } from "@/lib/constants";
 import { ButtonLink, Card, EmptyState, PageHeader, Stat, StatusBadge, Table } from "@/components/ui";
 import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
+import { indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Invoices" };
 
@@ -17,7 +18,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const { page, skip, take } = pageArgs(sp.page);
   const { currency } = await getSettings();
-  const today = new Date(new Date().toDateString());
+  const today = indiaToday();
   const where: Prisma.InvoiceWhereInput = {};
   if (sp.status === "OVERDUE") Object.assign(where, { status: { in: ["UNPAID", "PARTIAL"] }, dueDate: { lt: today } });
   else if (sp.status) where.status = sp.status;

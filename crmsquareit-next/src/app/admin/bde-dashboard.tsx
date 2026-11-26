@@ -16,6 +16,7 @@ import { StageButtons } from "@/components/lead-flow";
 import { convertLead } from "./leads/actions";
 import { TodoWidget } from "./todo-widget";
 import { Greeting } from "@/components/greeting";
+import { indiaMonthStart, indiaMonthStartAt, indiaToday } from "@/lib/india-time";
 
 const DAY = 86_400_000;
 /** A lead not contacted for this many days needs a follow-up, even without a date set. */
@@ -26,10 +27,10 @@ const FOLLOW_UP_DAYS = 7;
  *  A BDE Team Lead sees the whole team; an Executive sees their own leads. */
 export async function BdeDashboard({ user, stage: stageParam }: { user: CurrentUser; stage?: string }) {
   const isTL = user.memberships.some((m) => m.departmentCode === "BDE" && m.teamRole === "TL");
-  const now = new Date();
-  const today = new Date(now.toDateString());
+  const today = indiaToday();
   const endOfToday = new Date(today.getTime() + DAY);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStart = indiaMonthStart();
+  const monthStartAt = indiaMonthStartAt();
   const stale = new Date(today.getTime() - FOLLOW_UP_DAYS * DAY);
 
   const mine: Prisma.LeadWhereInput = isTL ? {} : { assignedId: user.id };
@@ -40,8 +41,8 @@ export async function BdeDashboard({ user, stage: stageParam }: { user: CurrentU
   const [settings, stageTotals, newLeads, converted, allLeads, followUps, quotes, qMonth, qWon, todos] = await Promise.all([
     getSettings(),
     Promise.all(LEAD_STAGES.map((s) => db.lead.aggregate({ where: scoped(s), _count: true, _sum: { value: true } }))),
-    db.lead.count({ where: { ...mine, createdAt: { gte: monthStart } } }),
-    db.lead.count({ where: { ...mine, customerId: { not: null }, customer: { createdAt: { gte: monthStart } } } }),
+    db.lead.count({ where: { ...mine, createdAt: { gte: monthStartAt } } }),
+    db.lead.count({ where: { ...mine, customerId: { not: null }, customer: { createdAt: { gte: monthStartAt } } } }),
     db.lead.count({ where: mine }),
     db.lead.findMany({
       where: {
@@ -58,7 +59,7 @@ export async function BdeDashboard({ user, stage: stageParam }: { user: CurrentU
     }),
     db.quotation.findMany({ where: qScope, orderBy: [{ date: "desc" }, { number: "desc" }], take: 6 }),
     db.quotation.aggregate({ where: { ...qScope, date: { gte: monthStart } }, _count: true, _sum: { total: true } }),
-    db.quotation.aggregate({ where: { ...qScope, status: "ACCEPTED", updatedAt: { gte: monthStart } }, _count: true, _sum: { total: true } }),
+    db.quotation.aggregate({ where: { ...qScope, status: "ACCEPTED", updatedAt: { gte: monthStartAt } }, _count: true, _sum: { total: true } }),
     db.todo.findMany({ where: { staffId: user.id }, orderBy: [{ done: "asc" }, { createdAt: "desc" }], take: 20 }),
   ]);
   const cur = settings.currency;

@@ -7,6 +7,7 @@ import { getSettings } from "@/lib/settings";
 import { Badge, ButtonLink, Card, EmptyState, PageHeader, Stat, Table } from "@/components/ui";
 import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
+import { indiaMonthStart } from "@/lib/india-time";
 
 export const metadata = { title: "Expenses" };
 
@@ -18,7 +19,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const where: Prisma.ExpenseWhereInput = {};
   if (sp.category) where.categoryId = Number(sp.category);
   if (sp.q) where.OR = [{ name: { contains: sp.q } }, { reference: { contains: sp.q } }];
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const monthStart = indiaMonthStart();
   const [rows, total, cats, month, sum] = await Promise.all([
     db.expense.findMany({ where, skip, take, orderBy: { date: "desc" }, include: { category: true, customer: true, project: true } }),
     db.expense.count({ where }),

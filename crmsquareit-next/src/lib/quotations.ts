@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "./db";
 import type { CurrentUser } from "./auth";
+import { indiaToday } from "./india-time";
 
 export const QUOTATION_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "DECLINED"] as const;
 export type QuotationStatus = (typeof QUOTATION_STATUSES)[number];
@@ -13,7 +14,7 @@ export async function nextQuotationNumber() {
 
 /** "Expired" is shown, not stored: a draft or sent quotation past its validity date. */
 export const displayStatus = (q: { status: string; validUntil: Date | null }) =>
-  (q.status === "DRAFT" || q.status === "SENT") && q.validUntil && q.validUntil < new Date(new Date().toDateString()) ? "EXPIRED" : q.status;
+  (q.status === "DRAFT" || q.status === "SENT") && q.validUntil && q.validUntil < indiaToday() ? "EXPIRED" : q.status;
 
 /** Super Admin and BDE Team Leads see every quotation; everyone else sees the ones they made. */
 export function quotationScope(u: CurrentUser): Prisma.QuotationWhereInput {

@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { Card, PageHeader, Stat, Table } from "@/components/ui";
 import { RevenueChart, DonutChart } from "@/components/charts";
 import { FilterSelect } from "@/components/client";
+import { indiaStartAt, indiaYear } from "@/lib/india-time";
 
 export const metadata = { title: "Reports" };
 
@@ -12,20 +13,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   await requirePerm("reports");
   const sp = await searchParams;
   const { currency } = await getSettings();
-  const year = Number(sp.year) || new Date().getFullYear();
-  const from = new Date(year, 0, 1);
-  const to = new Date(year + 1, 0, 1);
+  const year = Number(sp.year) || indiaYear();
+  const from = new Date(Date.UTC(year, 0, 1));
+  const to = new Date(Date.UTC(year + 1, 0, 1));
   const [payments, expenses, invoices, leads, sources, customers] = await Promise.all([
     db.payment.findMany({ where: { date: { gte: from, lt: to } }, include: { invoice: { select: { customerId: true } } } }),
     db.expense.findMany({ where: { date: { gte: from, lt: to } }, include: { category: true } }),
     db.invoice.findMany({ where: { date: { gte: from, lt: to }, status: { not: "CANCELLED" } }, select: { status: true, total: true, taxTotal: true } }),
-    db.lead.findMany({ where: { createdAt: { gte: from, lt: to } }, select: { sourceId: true, customerId: true } }),
+    db.lead.findMany({ where: { createdAt: { gte: indiaStartAt(from), lt: indiaStartAt(to) } }, select: { sourceId: true, customerId: true } }),
     db.leadSource.findMany(),
     db.customer.findMany({ select: { id: true, company: true } }),
   ]);
-  const months = Array.from({ length: 12 }, (_, m) => ({ month: new Date(year, m, 1).toLocaleString("en", { month: "short" }), revenue: 0, expenses: 0 }));
-  payments.forEach((p) => (months[p.date.getMonth()].revenue += p.amount));
-  expenses.forEach((e) => (months[e.date.getMonth()].expenses += e.amount));
+  const months = Array.from({ length: 12 }, (_, m) => ({ month: new Date(Date.UTC(year, m, 1)).toLocaleString("en", { month: "short", timeZone: "UTC" }), revenue: 0, expenses: 0 }));
+  payments.forEach((p) => (months[p.date.getUTCMonth()].revenue += p.amount));
+  expenses.forEach((e) => (months[e.date.getUTCMonth()].expenses += e.amount));
   const income = payments.reduce((s, p) => s + p.amount, 0);
   const spent = expenses.reduce((s, e) => s + e.amount, 0);
   const tax = invoices.filter((i) => i.status !== "DRAFT").reduce((s, i) => s + i.taxTotal, 0);
@@ -37,7 +38,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   expenses.forEach((e) => byCat.set(e.category.name, (byCat.get(e.category.name) ?? 0) + e.amount));
   const palette = ["#4f74c4", "#27ae57", "#e0a400", "#e84a37", "#7c5cc4", "#0f9fb0", "#94a3b8"];
   const firstYear = 2020;
-  const years = Array.from({ length: new Date().getFullYear() - firstYear + 2 }, (_, i) => String(new Date().getFullYear() + 1 - i));
+  const years = Array.from({ length: indiaYear() - firstYear + 2 }, (_, i) => String(indiaYear() + 1 - i));
 
   return (
     <>

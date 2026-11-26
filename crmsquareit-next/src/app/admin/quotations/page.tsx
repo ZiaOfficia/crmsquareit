@@ -12,6 +12,7 @@ import { displayStatus, quotationScope } from "@/lib/quotations";
 import { ButtonLink, Card, EmptyState, PageHeader, Stat, StatusBadge, Table } from "@/components/ui";
 import { FilterSelect, SearchBox } from "@/components/client";
 import { Pagination, pageArgs } from "@/components/pagination";
+import { indiaMonthStart, indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Quotations" };
 
@@ -21,8 +22,8 @@ export default async function QuotationsPage({ searchParams }: { searchParams: P
   const { page, skip, take } = pageArgs(sp.page);
   const { currency } = await getSettings();
   const scope = quotationScope(user);
-  const today = new Date(new Date().toDateString());
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const today = indiaToday();
+  const monthStart = indiaMonthStart();
 
   const where: Prisma.QuotationWhereInput = { ...scope };
   if (sp.status === "EXPIRED") Object.assign(where, { status: { in: ["DRAFT", "SENT"] }, validUntil: { lt: today } });

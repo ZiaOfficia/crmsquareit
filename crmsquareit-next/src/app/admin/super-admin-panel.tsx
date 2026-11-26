@@ -12,6 +12,7 @@ import { isLocked, monthKey, officeCategoryLabel, parseMonth, REPORT_STATUS, shi
 import { Avatar, Badge, ButtonLink, Card, EmptyState, StatusBadge } from "@/components/ui";
 import { LiveRefresh } from "@/components/announcements";
 import { Greeting } from "@/components/greeting";
+import { indiaMonthStart, indiaMonthStartAt, indiaToday, indiaTodayAt } from "@/lib/india-time";
 
 const DAY = 86_400_000;
 
@@ -26,9 +27,10 @@ const OFFICE_TAB = "office";
 export async function SuperAdminPanel({ user, tab }: { user: CurrentUser; tab?: string }) {
   const hr = !user.isAdmin && user.isHR;
   const now = new Date();
-  const today = new Date(now.toDateString());
+  const today = indiaToday();
+  const todayAt = indiaTodayAt();
   const weekAgo = new Date(now.getTime() - 7 * DAY);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStart = indiaMonthStart();
 
   const [settings, dir, depts, openTasks, doneThisWeek, openTickets, leadsThisMonth, paidThisMonth, activeProjects, announcements, pendingReports] = await Promise.all([
     getSettings(),
@@ -44,7 +46,7 @@ export async function SuperAdminPanel({ user, tab }: { user: CurrentUser; tab?: 
     }),
     db.task.findMany({ where: { status: "COMPLETE", completedAt: { gte: weekAgo } }, select: { assignees: { select: { id: true } } } }),
     db.ticket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
-    db.lead.count({ where: { createdAt: { gte: monthStart } } }),
+    db.lead.count({ where: { createdAt: { gte: indiaMonthStartAt() } } }),
     db.payment.aggregate({ _sum: { amount: true }, where: { date: { gte: monthStart } } }),
     db.project.count({ where: { status: "IN_PROGRESS" } }),
     db.announcement.findMany({
@@ -68,7 +70,7 @@ export async function SuperAdminPanel({ user, tab }: { user: CurrentUser; tab?: 
     };
   };
   const membersOf = (d: Dept) => dir.filter((s) => s.deptIds.includes(d.id));
-  const onlineToday = (people: typeof dir) => people.filter((s) => s.lastLogin && s.lastLogin >= today).length;
+  const onlineToday = (people: typeof dir) => people.filter((s) => s.lastLogin && s.lastLogin >= todayAt).length;
 
   const active = depts.find((d) => d.code === tab);
   const showOffice = tab === OFFICE_TAB && can(user, "office_expenses");
@@ -171,7 +173,7 @@ export async function SuperAdminPanel({ user, tab }: { user: CurrentUser; tab?: 
       {showOffice ? (
         <OfficeTab user={user} currency={settings.currency} />
       ) : active ? (
-        <DepartmentTab dept={active} dir={dir} announcements={announcements} openTasks={openTasks} workFor={workFor} today={today} />
+        <DepartmentTab dept={active} dir={dir} announcements={announcements} openTasks={openTasks} workFor={workFor} today={today} todayAt={todayAt} />
       ) : (
         <Overview depts={depts} dir={dir} announcements={announcements} workFor={workFor} membersOf={membersOf} onlineToday={onlineToday} announcementsTitle={hr ? "Your announcements" : undefined} />
       )}
@@ -250,7 +252,7 @@ async function Overview({ depts, dir, announcements, workFor, membersOf, onlineT
   );
 }
 
-async function DepartmentTab({ dept, dir, announcements, openTasks, workFor, today }: { dept: Dept; dir: Dir; announcements: Ann[]; openTasks: OpenTask[]; workFor: WorkFor; today: Date }) {
+async function DepartmentTab({ dept, dir, announcements, openTasks, workFor, today, todayAt }: { dept: Dept; dir: Dir; announcements: Ann[]; openTasks: OpenTask[]; workFor: WorkFor; today: Date; todayAt: Date }) {
   const deptIds = [dept.id, ...dept.children.map((c) => c.id)];
   const members = await db.departmentMember.findMany({
     where: { departmentId: { in: deptIds }, staff: { active: true } },
@@ -301,7 +303,7 @@ async function DepartmentTab({ dept, dir, announcements, openTasks, workFor, tod
                 {members.map((m) => {
                   const p = perPerson(m.staffId);
                   const name = `${m.staff.firstName} ${m.staff.lastName}`.trim();
-                  const online = m.staff.lastLogin && m.staff.lastLogin >= today;
+                  const online = m.staff.lastLogin && m.staff.lastLogin >= todayAt;
                   return (
                     <tr key={m.id} className="hover:bg-slate-50/60">
                       <td className="td">

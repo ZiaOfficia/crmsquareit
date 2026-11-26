@@ -10,6 +10,7 @@ import { teamRoleLabel } from "@/lib/org";
 import { canTrackTeam, getTaskScope, trackedIds } from "@/lib/task-access";
 import { Avatar, Badge, ButtonLink, Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { FilterSelect } from "@/components/client";
+import { indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Team work" };
 const DAY = 86_400_000;
@@ -23,7 +24,7 @@ export default async function TeamWorkPage({ searchParams }: { searchParams: Pro
   const ids = trackedIds(user, scope);
   const deptId = sp.dept ? Number(sp.dept) : null;
   const now = new Date();
-  const today = new Date(now.toDateString());
+  const today = indiaToday();
   const weekAgo = new Date(now.getTime() - 7 * DAY);
 
   const [staff, depts] = await Promise.all([

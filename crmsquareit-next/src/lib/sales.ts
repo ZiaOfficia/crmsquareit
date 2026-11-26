@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { db } from "./db";
 import { round2 } from "./format";
+import { indiaToday } from "./india-time";
 
 export type LineInput = {
   description: string;
@@ -66,5 +67,5 @@ export async function refreshInvoiceStatus(invoiceId: number) {
 }
 
 export function isOverdue(inv: { status: string; dueDate: Date | null }) {
-  return (inv.status === "UNPAID" || inv.status === "PARTIAL") && !!inv.dueDate && inv.dueDate < new Date(new Date().toDateString());
+  return (inv.status === "UNPAID" || inv.status === "PARTIAL") && !!inv.dueDate && inv.dueDate < indiaToday();
 }

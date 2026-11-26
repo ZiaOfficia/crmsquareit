@@ -6,7 +6,8 @@ import { can } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { fmtDate, fmtDateTime, money } from "@/lib/format";
 import { getSettings } from "@/lib/settings";
-import { isLocked, monthKey, officeCategoryLabel, parseMonth, REPORT_STATUS, shiftMonth } from "@/lib/office-expenses";
+import { isLocked, thisMonthKey, officeCategoryLabel, parseMonth, REPORT_STATUS, shiftMonth } from "@/lib/office-expenses";
+import { indiaTomorrow } from "@/lib/india-time";
 import { Badge, Card, EmptyState, PageHeader, StatusBadge, btn } from "@/components/ui";
 import { ActionForm, PrintButton, SubmitButton } from "@/components/client";
 import { OfficeExpenseForm } from "./form";
@@ -20,7 +21,7 @@ export default async function OfficeExpensesPage({ searchParams }: { searchParam
   const user = await requirePerm("office_expenses");
   const m = parseMonth((await searchParams).month);
   const prev = parseMonth(shiftMonth(m.key, -1));
-  const thisMonth = monthKey(new Date());
+  const thisMonth = thisMonthKey();
   const isFuture = m.key > thisMonth;
   const { currency } = await getSettings();
 
@@ -212,11 +213,11 @@ export default async function OfficeExpensesPage({ searchParams }: { searchParam
   );
 }
 
-/** Days elapsed in the month (whole month if it's over). */
+/** Days elapsed in the month, counting today in India (whole month if it's over). */
 function daysCounted(start: Date, end: Date) {
-  const now = new Date();
-  const until = now < end ? now : end;
-  return Math.max(1, Math.ceil((until.getTime() - start.getTime()) / 86_400_000));
+  const tomorrow = indiaTomorrow();
+  const until = tomorrow < end ? tomorrow : end;
+  return Math.max(1, Math.round((until.getTime() - start.getTime()) / 86_400_000));
 }
 
 type Report = {

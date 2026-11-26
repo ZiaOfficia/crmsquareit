@@ -6,6 +6,7 @@ import { requireAdminOrHR, requireUser } from "@/lib/auth";
 import { logActivity } from "@/lib/activity";
 import { bool, dateOrNull, ints, str, type ActionState } from "@/lib/forms";
 import { AUDIENCES, type Audience, unreadWhere, visibleWhere } from "@/lib/announcements";
+import { indiaEndOfDay } from "@/lib/india-time";
 
 function refresh() {
   revalidatePath("/admin", "layout");
@@ -39,9 +40,9 @@ async function parse(f: FormData) {
     if (!staffIds.length) return { error: "Pick at least one person." } as const;
   }
 
-  const expires = dateOrNull(f, "expiresAt");
-  // A date picked without a time expires at the end of that day.
-  if (expires) expires.setHours(23, 59, 59, 999);
+  const picked = dateOrNull(f, "expiresAt");
+  // A date picked without a time expires at the end of that day, India time.
+  const expires = picked && indiaEndOfDay(picked);
   if (expires && expires < new Date()) return { error: "The expiry date is in the past." } as const;
 
   return {

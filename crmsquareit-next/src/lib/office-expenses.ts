@@ -1,5 +1,6 @@
 /** Office expenses: categories and month helpers. Safe to import from client and server code. */
 import type { Tone } from "./constants";
+import { indiaMonthStart } from "./india-time";
 
 export const OFFICE_EXPENSE_CATEGORIES = [
   { key: "RENT", label: "Rent" },
@@ -27,23 +28,25 @@ export const REPORT_STATUS: Record<string, { label: string; tone: Tone }> = {
   RETURNED: { label: "Sent back", tone: "red" },
 };
 
-/** "2026-11" for a date (local time). */
-export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+/** "2026-11" for a saved calendar-day value. */
+export const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+/** "2026-11" for the current month in India. */
+export const thisMonthKey = () => monthKey(indiaMonthStart());
 
 /** Parses "2026-11"; falls back to the current month. */
 export function parseMonth(v: string | undefined | null) {
   const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(v ?? "");
-  const now = new Date();
-  const year = m ? Number(m[1]) : now.getFullYear();
-  const month = m ? Number(m[2]) - 1 : now.getMonth();
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 1);
-  return { key: monthKey(start), start, end, label: start.toLocaleString("en-GB", { month: "long", year: "numeric" }) };
+  const now = indiaMonthStart();
+  const year = m ? Number(m[1]) : now.getUTCFullYear();
+  const month = m ? Number(m[2]) - 1 : now.getUTCMonth();
+  const start = new Date(Date.UTC(year, month, 1));
+  const end = new Date(Date.UTC(year, month + 1, 1));
+  return { key: monthKey(start), start, end, label: start.toLocaleString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }) };
 }
 
 export const shiftMonth = (key: string, by: number) => {
   const { start } = parseMonth(key);
-  return monthKey(new Date(start.getFullYear(), start.getMonth() + by, 1));
+  return monthKey(new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + by, 1)));
 };
 
 /** HR can't change a month once it's submitted or approved. Super Admins always can. */

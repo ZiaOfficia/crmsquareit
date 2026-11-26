@@ -11,6 +11,7 @@ import { TodoWidget } from "./todo-widget";
 import { SuperAdminPanel } from "./super-admin-panel";
 import { BdeDashboard } from "./bde-dashboard";
 import { Greeting } from "@/components/greeting";
+import { dayMonthKey, indiaMonthStart, indiaMonthStartAt, indiaToday } from "@/lib/india-time";
 
 export const metadata = { title: "Dashboard" };
 
@@ -22,10 +23,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   if (user.isBDE && !classic) return <BdeDashboard user={user} stage={tab} />;
   const settings = await getSettings();
   const cur = settings.currency;
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const today = new Date(now.toDateString());
-  const yearAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const monthStart = indiaMonthStart();
+  const today = indiaToday();
+  const yearAgo = indiaMonthStart(-11);
   // The company-wide feed is for Super Admin / HR only, not TLs or Executives.
   const showActivity = user.isAdmin || user.isHR || user.memberships.length === 0;
 
@@ -33,7 +33,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     await Promise.all([
       db.invoice.findMany({ where: { status: { in: ["UNPAID", "PARTIAL"] } }, include: { payments: true } }),
       db.payment.aggregate({ _sum: { amount: true }, where: { date: { gte: monthStart } } }),
-      db.lead.count({ where: { createdAt: { gte: monthStart } } }),
+      db.lead.count({ where: { createdAt: { gte: indiaMonthStartAt() } } }),
       db.project.count({ where: { status: "IN_PROGRESS" } }),
       db.task.findMany({
         where: { status: { not: "COMPLETE" }, assignees: { some: { id: user.id } } },
@@ -57,16 +57,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   const outstanding = openInvoices.reduce((s, i) => s + i.total - i.payments.reduce((a, p) => a + p.amount, 0), 0);
   const months = Array.from({ length: 12 }, (_, k) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 11 + k, 1);
-    return { key: `${d.getFullYear()}-${d.getMonth()}`, month: d.toLocaleString("en", { month: "short" }), revenue: 0, expenses: 0 };
+    const d = indiaMonthStart(k - 11);
+    return { key: dayMonthKey(d), month: d.toLocaleString("en", { month: "short", timeZone: "UTC" }), revenue: 0, expenses: 0 };
   });
   const idx = Object.fromEntries(months.map((m, i) => [m.key, i]));
   for (const p of payments) {
-    const i = idx[`${p.date.getFullYear()}-${p.date.getMonth()}`];
+    const i = idx[dayMonthKey(p.date)];
     if (i !== undefined) months[i].revenue += p.amount;
   }
   for (const e of expenses) {
-    const i = idx[`${e.date.getFullYear()}-${e.date.getMonth()}`];
+    const i = idx[dayMonthKey(e.date)];
     if (i !== undefined) months[i].expenses += e.amount;
   }
 
@@ -79,7 +79,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {can(user, "invoices") && <Stat label="Outstanding invoices" value={money(outstanding, cur)} sub={`${openInvoices.length} unpaid · ${overdue.length} overdue`} accent="red" href="/admin/invoices?status=UNPAID" />}
-        {can(user, "payments") && <Stat label="Received this month" value={money(paidThisMonth._sum.amount ?? 0, cur)} sub={now.toLocaleString("en", { month: "long", year: "numeric" })} accent="green" href="/admin/payments" />}
+        {can(user, "payments") && <Stat label="Received this month" value={money(paidThisMonth._sum.amount ?? 0, cur)} sub={monthStart.toLocaleString("en", { month: "long", year: "numeric", timeZone: "UTC" })} accent="green" href="/admin/payments" />}
         {can(user, "leads") && <Stat label="New leads this month" value={leadsThisMonth} sub="Across all sources" accent="blue" href="/admin/leads" />}
         {can(user, "projects") && <Stat label="Active projects" value={activeProjects} sub={`${openTickets} open support tickets`} accent="yellow" href="/admin/projects" />}
       </div>
